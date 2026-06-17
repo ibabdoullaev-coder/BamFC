@@ -357,6 +357,35 @@ body {
 td.empty-state { padding: 2rem; }
 
 
+
+/* FIFA CARDS */
+.fifa-card {
+  width: 68px;
+  border-radius: 8px;
+  border: 1.5px solid #c8952a;
+  padding: 5px 4px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  transition: transform 0.15s;
+  cursor: grab;
+}
+.fifa-card:hover { transform: scale(1.1); }
+.fc-top { display: flex; flex-direction: column; align-self: flex-start; padding-left: 2px; line-height: 1.1; }
+.fc-rating { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; }
+.fc-poste { font-size: 8px; font-weight: 700; letter-spacing: 0.05em; }
+.fc-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px; font-weight: 700;
+  background: rgba(0,0,0,0.2);
+  margin: 2px 0;
+}
+.fc-nom { font-size: 8px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; text-align: center; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-stats { display: flex; gap: 4px; margin-top: 2px; }
+.fc-stats span { font-size: 7.5px; font-weight: 500; }
+.fc-stats b { font-weight: 700; }
+
 /* TERRAIN */
 .terrain-hint { color: var(--text-muted); font-size: 14px; padding: 2rem; text-align: center; background: var(--bg-card); border: 0.5px solid var(--border); border-radius: var(--radius-lg); }
 .terrain-wrap { position: relative; width: 100%; }

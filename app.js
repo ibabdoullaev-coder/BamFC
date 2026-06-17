@@ -405,12 +405,49 @@ function drawField() {
   ctx.beginPath(); ctx.arc(W/2, H*0.18, 3, 0, Math.PI*2); ctx.fill();
 }
 
+function getPlayerStats(id) {
+  let matchs = 0, victoires = 0, buts = 0;
+  historique.forEach(m => {
+    const myTeam = m.teams.find(t => t.joueurs.includes(id));
+    if (!myTeam) return;
+    matchs++;
+    buts += m.buts[id] || 0;
+    const maxScore = Math.max(...m.teams.map(t => t.score));
+    const isNul = m.teams.filter(t => t.score === maxScore).length > 1;
+    if (!isNul && myTeam.score === maxScore) victoires++;
+  });
+  const winPct = matchs ? Math.round((victoires / matchs) * 100) : 0;
+  const rating = matchs === 0 ? 60 : Math.min(99, Math.round(50 + (victoires * 2.5) + (buts * 1.5) + (winPct * 0.1)));
+  return { matchs, victoires, buts, winPct, rating };
+}
+
+function getRatingColor(r) {
+  if (r >= 85) return { bg: 'linear-gradient(135deg,#d4a843,#f0c84a)', border: '#c8952a', text: '#3a2800' };
+  if (r >= 75) return { bg: 'linear-gradient(135deg,#8fc169,#a8d878)', border: '#6a9940', text: '#1a3000' };
+  if (r >= 65) return { bg: 'linear-gradient(135deg,#5a8fc4,#7ab0e0)', border: '#3a6fa0', text: '#001830' };
+  return { bg: 'linear-gradient(135deg,#888,#aaa)', border: '#666', text: '#111' };
+}
+
+function makeFifaCard(j) {
+  const st = getPlayerStats(j.id);
+  const rc = getRatingColor(st.rating);
+  return '<div class="fifa-card" style="border-color:' + rc.border + ';background:' + rc.bg + '">' +
+    '<div class="fc-top"><span class="fc-rating" style="color:' + rc.text + '">' + st.rating + '</span><span class="fc-poste" style="color:' + rc.text + '">' + (j.poste || 'JR') + '</span></div>' +
+    '<div class="fc-avatar" style="color:' + rc.text + '">' + initials(j.nom) + '</div>' +
+    '<div class="fc-nom" style="color:' + rc.text + '">' + j.nom + '</div>' +
+    '<div class="fc-stats" style="color:' + rc.text + '">' +
+      '<span><b>' + st.buts + '</b> BT</span>' +
+      '<span><b>' + st.victoires + '</b> V</span>' +
+      '<span><b>' + st.matchs + '</b> M</span>' +
+    '</div>' +
+  '</div>';
+}
+
 function renderTerrain() {
   if (!currentTeams.length) return;
   document.getElementById('terrainWrap').style.display = '';
   document.getElementById('terrainHint').style.display = 'none';
   drawField();
-  const canvas = document.getElementById('terrainCanvas');
   const container = document.getElementById('terrainPlayers');
   container.innerHTML = '';
   const fmtA = document.getElementById('formationA').value;
@@ -419,16 +456,14 @@ function renderTerrain() {
   const posB = FORMATIONS_B[fmtB] || FORMATIONS_B['2-2'];
   [currentTeams[0] || [], currentTeams[1] || []].forEach((team, ti) => {
     const positions = ti === 0 ? posA : posB;
-    const acc = TEAM_ACCENT[ti];
     team.forEach((j, idx) => {
       const defPos = positions[idx] || [0.5, ti === 0 ? 0.75 : 0.25];
       const pos = playerPositions[j.id] || { x: defPos[0], y: defPos[1] };
-      const col = colorFor(j.nom);
       const el = document.createElement('div');
       el.className = 't-player';
       el.style.left = (pos.x * 100) + '%';
       el.style.top = (pos.y * 100) + '%';
-      el.innerHTML = '<div class="t-avatar" style="background:' + col.bg + ';color:' + col.text + ';border-color:' + acc + '">' + initials(j.nom) + '</div><span class="t-name">' + j.nom + '</span>';
+      el.innerHTML = makeFifaCard(j);
       let dragging = false, ox = 0, oy = 0;
       const field = document.getElementById('terrainField');
       el.addEventListener('mousedown', e => {
