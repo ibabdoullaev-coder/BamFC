@@ -109,6 +109,8 @@ function tirerEquipes() {
   renderTeams();
   renderScoreInputs();
   document.getElementById('teamsWrap').style.display = '';
+  playerPositions = {};
+  renderTerrain();
 }
 
 function renderTeams() {
@@ -358,6 +360,112 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
+
+
+// ─── TERRAIN ─────────────────────────────────────────────
+const FORMATIONS = {
+  '2-2':   [ [0.5,0.88], [0.25,0.68],[0.75,0.68], [0.25,0.45],[0.75,0.45] ],
+  '1-2-1': [ [0.5,0.88], [0.5,0.68], [0.25,0.48],[0.75,0.48], [0.5,0.30] ],
+  '2-1-1': [ [0.5,0.88], [0.25,0.70],[0.75,0.70], [0.5,0.50], [0.5,0.30] ],
+};
+const FORMATIONS_B = {
+  '2-2':   [ [0.5,0.12], [0.25,0.32],[0.75,0.32], [0.25,0.55],[0.75,0.55] ],
+  '1-2-1': [ [0.5,0.12], [0.5,0.32], [0.25,0.52],[0.75,0.52], [0.5,0.70] ],
+  '2-1-1': [ [0.5,0.12], [0.25,0.30],[0.75,0.30], [0.5,0.50], [0.5,0.70] ],
+};
+
+let playerPositions = {};
+
+function drawField() {
+  const canvas = document.getElementById('terrainCanvas');
+  if (!canvas) return;
+  const W = canvas.parentElement.clientWidth || 600;
+  const H = W * (105/68);
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const stripes = 10;
+  const sw = W / stripes;
+  for (let i = 0; i < stripes; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+    ctx.fillRect(i * sw, 0, sw, H);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(8, H/2); ctx.lineTo(W-8, H/2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, W*0.12, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, 3, 0, Math.PI*2); ctx.fillStyle='white'; ctx.fill();
+  const bw = W * 0.55, bh = H * 0.15, bx = (W - bw) / 2;
+  ctx.strokeRect(bx, 8, bw, bh);
+  ctx.strokeRect(bx, H - 8 - bh, bw, bh);
+  const sw2 = W*0.28, sh2 = H*0.07, sx = (W - sw2) / 2;
+  ctx.strokeRect(sx, 8, sw2, sh2);
+  ctx.strokeRect(sx, H - 8 - sh2, sw2, sh2);
+  ctx.beginPath(); ctx.arc(W/2, H*0.82, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(W/2, H*0.18, 3, 0, Math.PI*2); ctx.fill();
+}
+
+function renderTerrain() {
+  if (!currentTeams.length) return;
+  document.getElementById('terrainWrap').style.display = '';
+  document.getElementById('terrainHint').style.display = 'none';
+  drawField();
+  const canvas = document.getElementById('terrainCanvas');
+  const container = document.getElementById('terrainPlayers');
+  container.innerHTML = '';
+  const fmtA = document.getElementById('formationA').value;
+  const fmtB = document.getElementById('formationB').value;
+  const posA = FORMATIONS[fmtA] || FORMATIONS['2-2'];
+  const posB = FORMATIONS_B[fmtB] || FORMATIONS_B['2-2'];
+  [currentTeams[0] || [], currentTeams[1] || []].forEach((team, ti) => {
+    const positions = ti === 0 ? posA : posB;
+    const acc = TEAM_ACCENT[ti];
+    team.forEach((j, idx) => {
+      const defPos = positions[idx] || [0.5, ti === 0 ? 0.75 : 0.25];
+      const pos = playerPositions[j.id] || { x: defPos[0], y: defPos[1] };
+      const col = colorFor(j.nom);
+      const el = document.createElement('div');
+      el.className = 't-player';
+      el.style.left = (pos.x * 100) + '%';
+      el.style.top = (pos.y * 100) + '%';
+      el.innerHTML = '<div class="t-avatar" style="background:' + col.bg + ';color:' + col.text + ';border-color:' + acc + '">' + initials(j.nom) + '</div><span class="t-name">' + j.nom + '</span>';
+      let dragging = false, ox = 0, oy = 0;
+      const field = document.getElementById('terrainField');
+      el.addEventListener('mousedown', e => {
+        dragging = true;
+        const r = el.getBoundingClientRect();
+        ox = e.clientX - r.left - r.width/2;
+        oy = e.clientY - r.top - r.height/2;
+        e.preventDefault();
+      });
+      el.addEventListener('touchstart', e => {
+        dragging = true;
+        const t = e.touches[0];
+        const r = el.getBoundingClientRect();
+        ox = t.clientX - r.left - r.width/2;
+        oy = t.clientY - r.top - r.height/2;
+        e.preventDefault();
+      }, { passive: false });
+      const onMove = (cx, cy) => {
+        if (!dragging) return;
+        const fr = field.getBoundingClientRect();
+        let px = Math.max(0.03, Math.min(0.97, (cx - ox - fr.left) / fr.width));
+        let py = Math.max(0.03, Math.min(0.97, (cy - oy - fr.top) / fr.height));
+        el.style.left = (px * 100) + '%';
+        el.style.top = (py * 100) + '%';
+        playerPositions[j.id] = { x: px, y: py };
+      };
+      document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+      document.addEventListener('touchmove', e => { if(dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      document.addEventListener('mouseup', () => { dragging = false; });
+      document.addEventListener('touchend', () => { dragging = false; });
+      container.appendChild(el);
+    });
+  });
+}
+
+function resetPositions() { playerPositions = {}; renderTerrain(); }
+window.addEventListener('resize', () => { if (currentTeams.length) renderTerrain(); });
 
 // ─── INIT ─────────────────────────────────────────────────
 renderJoueurs();

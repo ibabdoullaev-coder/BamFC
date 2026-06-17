@@ -17,6 +17,7 @@
   <div class="nav-links">
     <a href="#joueurs" class="nav-link">Joueurs</a>
     <a href="#match" class="nav-link">Match</a>
+    <a href="#terrain" class="nav-link">Terrain</a>
     <a href="#historique" class="nav-link">Historique</a>
     <a href="#stats" class="nav-link">Stats</a>
   </div>
@@ -52,7 +53,6 @@
   <div class="section-header">
     <h2 class="section-title">Nouveau match</h2>
   </div>
-
   <div class="match-config">
     <label class="config-label">Format</label>
     <div class="format-pills">
@@ -62,15 +62,40 @@
     </div>
     <button class="btn-primary" onclick="tirerEquipes()">🎲 Tirer au sort</button>
   </div>
-
   <div class="teams-wrap" id="teamsWrap" style="display:none">
     <div class="teams-grid" id="teamsGrid"></div>
-
     <div class="score-section">
       <h3 class="subsection-title">Saisir le score</h3>
       <div class="score-input-row" id="scoreInputRow"></div>
       <div class="buts-section" id="butsSection"></div>
       <button class="btn-primary" onclick="enregistrerMatch()">✅ Enregistrer le match</button>
+    </div>
+  </div>
+</section>
+
+<!-- TERRAIN -->
+<section class="section" id="terrain">
+  <div class="section-header">
+    <h2 class="section-title">Terrain</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select class="select-formation" id="formationA" onchange="renderTerrain()">
+        <option value="2-2">2-2 (Éq. A)</option>
+        <option value="1-2-1">1-2-1 (Éq. A)</option>
+        <option value="2-1-1">2-1-1 (Éq. A)</option>
+      </select>
+      <select class="select-formation" id="formationB" onchange="renderTerrain()">
+        <option value="2-2">2-2 (Éq. B)</option>
+        <option value="1-2-1">1-2-1 (Éq. B)</option>
+        <option value="2-1-1">2-1-1 (Éq. B)</option>
+      </select>
+      <button class="btn-ghost" onclick="resetPositions()">↺ Reset</button>
+    </div>
+  </div>
+  <div class="terrain-hint" id="terrainHint">Lance un tirage au sort dans la section <strong>Match</strong> pour voir les joueurs sur le terrain.</div>
+  <div class="terrain-wrap" id="terrainWrap" style="display:none">
+    <div class="terrain-field" id="terrainField">
+      <canvas id="terrainCanvas"></canvas>
+      <div id="terrainPlayers"></div>
     </div>
   </div>
 </section>
@@ -127,7 +152,6 @@
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
-
 <script src="app.js"></script>
 </body>
 </html>
