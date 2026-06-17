@@ -663,6 +663,7 @@ function renderMatchPitch(teams, butsByPlayer) {
   });
 }
 
+window._playerGoalsCache = [];
 function showPlayerGoals(player, goals) {
   if (!goals.length) {
     toast(player.name + ' n a pas marque dans ce match');
@@ -672,19 +673,34 @@ function showPlayerGoals(player, goals) {
     playVideo(goals[0].videoUrl, player.name, goals[0].time);
     return;
   }
-  // Plusieurs buts - affiche modale liste
+  window._playerGoalsCache = goals;
+  window._currentPlayerName = player.name;
+
   let html = '<div style="display:flex;flex-direction:column;gap:8px">';
-  goals.forEach(g => {
-    const url = (g.videoUrl || '').replace(/'/g, "");
-    html += '<div class="import-but" onclick="closeModal(\'modalVideo\');setTimeout(()=>playVideo(\'' + url + '\', \'' + player.name.replace(/\'/g, "") + '\', ' + g.time + '), 200)">';
+  goals.forEach((g, i) => {
+    html += '<div class="import-but" onclick="playGoalFromCache(' + i + ')">';
     html += '<div class="import-but-info"><span class="import-but-time">' + Math.floor(g.time/60) + "'</span><span>" + g.name + '</span></div>';
     html += '<span class="import-but-play">▶</span></div>';
   });
   html += '</div>';
+
   document.getElementById('videoTitle').textContent = player.name + ' · ' + goals.length + ' buts';
   document.getElementById('videoPlayer').style.display = 'none';
+  document.getElementById('videoPlayer').pause();
+  // remove old list if exists
+  const old = document.getElementById('playerGoalsList');
+  if (old) old.remove();
   document.querySelector('#modalVideo .modal-body').insertAdjacentHTML('beforeend', '<div id="playerGoalsList">' + html + '</div>');
   openModal('modalVideo');
+}
+
+function playGoalFromCache(idx) {
+  const g = window._playerGoalsCache[idx];
+  if (!g) return;
+  const list = document.getElementById('playerGoalsList');
+  if (list) list.remove();
+  document.getElementById('videoPlayer').style.display = '';
+  playVideo(g.videoUrl, window._currentPlayerName, g.time);
 }
 
 function playVideo(url, title, time) {
