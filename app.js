@@ -563,16 +563,32 @@ function afficherImport(data, matchId) {
   const buts = data.buts || [];
   const score = data.score || {};
 
+  const sc0 = score[teams[0]?.id] || score[String(teams[0]?.id)] || 0;
+  const sc1 = score[teams[1]?.id] || score[String(teams[1]?.id)] || 0;
+
+  // Compter buts par joueur
+  const butsByPlayer = {};
+  buts.forEach(b => {
+    if (!butsByPlayer[b.playerId]) butsByPlayer[b.playerId] = [];
+    butsByPlayer[b.playerId].push(b);
+  });
+
   let html = '<div class="import-summary">';
   html += '<h4>Match #' + matchId + '</h4>';
   if (teams.length >= 2) {
     html += '<div class="import-teams">';
     html += '<span>' + teams[0].name + '</span>';
-    html += '<span class="import-score">' + (score[teams[0].id] || 0) + ' - ' + (score[teams[1].id] || 0) + '</span>';
+    html += '<span class="import-score">' + sc0 + ' - ' + sc1 + '</span>';
     html += '<span>' + teams[1].name + '</span>';
     html += '</div>';
   }
-  html += '<div style="font-size:12px;color:var(--text-muted);text-align:center">' + buts.length + ' buts</div>';
+
+  // TERRAIN FIFA STYLE
+  if (teams.length >= 2) {
+    html += '<div class="match-pitch" id="matchPitch"><canvas id="pitchCanvas"></canvas><div class="pitch-players" id="pitchPlayers"></div></div>';
+  }
+
+  html += '<div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:1rem">' + buts.length + ' buts au total · clique sur un joueur ou un but</div>';
 
   html += '<div class="import-buts-list">';
   buts.forEach(b => {
@@ -590,6 +606,85 @@ function afficherImport(data, matchId) {
   html += '</div>';
 
   el.innerHTML = html;
+
+  // Render pitch
+  if (teams.length >= 2) {
+    setTimeout(() => renderMatchPitch(teams, butsByPlayer), 50);
+  }
+}
+
+function renderMatchPitch(teams, butsByPlayer) {
+  const canvas = document.getElementById('pitchCanvas');
+  if (!canvas) return;
+  const W = canvas.parentElement.clientWidth || 500;
+  const H = W * 1.4;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Pelouse
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+    ctx.fillRect(0, i * (H/12), W, H/12);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(8, H/2); ctx.lineTo(W-8, H/2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, W*0.13, 0, Math.PI*2); ctx.stroke();
+
+  const container = document.getElementById('pitchPlayers');
+  container.innerHTML = '';
+
+  // Positions pour 5 joueurs - équipe haut puis bas
+  const posTop = [[0.5,0.10],[0.22,0.25],[0.78,0.25],[0.35,0.40],[0.65,0.40]];
+  const posBot = [[0.5,0.90],[0.22,0.75],[0.78,0.75],[0.35,0.60],[0.65,0.60]];
+
+  [0, 1].forEach(ti => {
+    const team = teams[ti];
+    const positions = ti === 0 ? posTop : posBot;
+    const acc = ti === 0 ? '#4AB8FF' : '#4AFF6A';
+    team.joueurs.slice(0, 5).forEach((p, idx) => {
+      const pos = positions[idx] || [0.5, ti === 0 ? 0.20 : 0.80];
+      const nbButs = (butsByPlayer[p.id] || []).length;
+      const col = colorFor(p.name);
+      const el = document.createElement('div');
+      el.className = 'pitch-player';
+      el.style.left = (pos[0] * 100) + '%';
+      el.style.top = (pos[1] * 100) + '%';
+      const hasGoals = nbButs > 0;
+      el.innerHTML = '<div class="pp-card' + (hasGoals ? ' has-goals' : '') + '" style="border-color:' + acc + '">' +
+        (hasGoals ? '<span class="pp-badge" style="background:' + acc + '">⚽ ' + nbButs + '</span>' : '') +
+        '<div class="pp-avatar" style="background:' + col.bg + ';color:' + col.text + '">' + initials(p.name) + '</div>' +
+        '<div class="pp-name">' + p.name + '</div>' +
+      '</div>';
+      el.onclick = () => showPlayerGoals(p, butsByPlayer[p.id] || []);
+      container.appendChild(el);
+    });
+  });
+}
+
+function showPlayerGoals(player, goals) {
+  if (!goals.length) {
+    toast(player.name + ' n a pas marque dans ce match');
+    return;
+  }
+  if (goals.length === 1) {
+    playVideo(goals[0].videoUrl, player.name, goals[0].time);
+    return;
+  }
+  // Plusieurs buts - affiche modale liste
+  let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+  goals.forEach(g => {
+    const url = (g.videoUrl || '').replace(/'/g, "");
+    html += '<div class="import-but" onclick="closeModal(\'modalVideo\');setTimeout(()=>playVideo(\'' + url + '\', \'' + player.name.replace(/\'/g, "") + '\', ' + g.time + '), 200)">';
+    html += '<div class="import-but-info"><span class="import-but-time">' + Math.floor(g.time/60) + "'</span><span>" + g.name + '</span></div>';
+    html += '<span class="import-but-play">▶</span></div>';
+  });
+  html += '</div>';
+  document.getElementById('videoTitle').textContent = player.name + ' · ' + goals.length + ' buts';
+  document.getElementById('videoPlayer').style.display = 'none';
+  document.querySelector('#modalVideo .modal-body').insertAdjacentHTML('beforeend', '<div id="playerGoalsList">' + html + '</div>');
+  openModal('modalVideo');
 }
 
 function playVideo(url, title, time) {
