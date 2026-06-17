@@ -34,22 +34,7 @@ module.exports = async (req, res) => {
     const events = await eventsRes.json();
     const players = await playersRes.json();
 
-    // Simplifier les players
-    const teams = {};
-    players.forEach(p => {
-      const teamId = p.teamPlayer?.team?.id;
-      const teamName = p.teamPlayer?.team?.name;
-      if (!teamId) return;
-      if (!teams[teamId]) teams[teamId] = { id: teamId, name: teamName, joueurs: [] };
-      teams[teamId].joueurs.push({
-        id: p.teamPlayer.id,
-        name: p.teamPlayer.name,
-        goals: p.nbGoals || 0,
-        goalsAgainst: p.nbGoalsAgainst || 0,
-      });
-    });
-
-    // Simplifier les events (buts)
+    // Buts depuis events
     const buts = events.filter(e => e.easyLiveEvent?.event_type === 'Point').map(e => ({
       id: e.id,
       playerName: e.player?.name,
@@ -61,10 +46,40 @@ module.exports = async (req, res) => {
       videoUrl: e.videoUrl,
     }));
 
-    // Calcul score
+    // Construire equipes a partir des events + matchplayers (en filtrant les bidons)
+    const teams = {};
+    buts.forEach(b => {
+      if (!b.teamId) return;
+      if (!teams[b.teamId]) teams[b.teamId] = { id: b.teamId, name: b.teamName, joueurs: [], _ids: new Set() };
+      if (b.playerId && !teams[b.teamId]._ids.has(b.playerId)) {
+        teams[b.teamId]._ids.add(b.playerId);
+        teams[b.teamId].joueurs.push({ id: b.playerId, name: b.playerName, goals: 0, goalsAgainst: 0 });
+      }
+    });
+
+    // Ajouter les autres joueurs depuis matchplayers (qui n ont pas marque), en filtrant les bidons
+    players.forEach(p => {
+      const tp = p.teamPlayer; if (!tp) return;
+      const teamId = tp.team?.id;
+      const teamName = tp.team?.name;
+      const name = tp.name || '';
+      // Filtrer les bidons "Joueur EQUIPE1" / "Joueur EQUIPE2"
+      if (/Joueur\s+(ÉQUIPE|EQUIPE)/i.test(name)) return;
+      if (!teamId) return;
+      if (!teams[teamId]) teams[teamId] = { id: teamId, name: teamName, joueurs: [], _ids: new Set() };
+      if (!teams[teamId]._ids.has(tp.id)) {
+        teams[teamId]._ids.add(tp.id);
+        teams[teamId].joueurs.push({ id: tp.id, name, goals: p.nbGoals || 0, goalsAgainst: p.nbGoalsAgainst || 0 });
+      }
+    });
+
+    // Nettoyer le _ids
+    Object.values(teams).forEach(t => delete t._ids);
+
+    // Calcul score depuis buts
     const score = {};
     Object.keys(teams).forEach(tid => score[tid] = 0);
-    buts.forEach(b => { if (score[b.teamId] !== undefined) score[b.teamId]++; });
+    buts.forEach(b => { if (b.teamId !== undefined) score[b.teamId] = (score[b.teamId] || 0) + 1; });
 
     return res.status(200).json({
       teams: Object.values(teams),
