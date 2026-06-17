@@ -436,3 +436,29 @@ td.empty-state { padding: 2rem; }
   .nav-links { gap: 1rem; }
   .section { padding: 3rem 1rem; }
 }
+
+/* IMPORT LEFIVE */
+.import-box { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; display: flex; flex-direction: column; gap: 10px; }
+.import-box .config-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: -4px; }
+.token-status { font-size: 12px; color: var(--text-muted); padding-left: 4px; }
+.token-status.ok { color: var(--accent); }
+#importResult { margin-top: 1rem; }
+.import-summary {
+  background: var(--bg-card2); border: 0.5px solid var(--accent);
+  border-radius: var(--radius); padding: 1rem; margin-top: 12px;
+}
+.import-summary h4 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; color: var(--accent); margin-bottom: 8px; }
+.import-teams { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin: 12px 0; font-size: 14px; }
+.import-score { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: var(--accent); }
+.import-buts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.import-but {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--bg-card);
+  border-radius: var(--radius); cursor: pointer;
+  border: 0.5px solid var(--border);
+  transition: border-color 0.15s;
+}
+.import-but:hover { border-color: var(--accent); }
+.import-but-info { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.import-but-time { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--accent); min-width: 30px; }
+.import-but-play { color: var(--accent); font-size: 14px; }

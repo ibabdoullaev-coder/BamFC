@@ -507,3 +507,140 @@ renderJoueurs();
 renderHistorique();
 renderStats();
 updateHero();
+
+// ─── IMPORT LEFIVE ───────────────────────────────────────
+function saveLefiveToken() {
+  const v = document.getElementById('lefiveToken').value.trim();
+  if (!v) { toast('Token vide !'); return; }
+  localStorage.setItem('lefive_token', v);
+  updateTokenStatus();
+  toast('Token sauvegarde ✓');
+  document.getElementById('lefiveToken').value = '';
+}
+
+function updateTokenStatus() {
+  const t = localStorage.getItem('lefive_token');
+  const el = document.getElementById('tokenStatus');
+  if (!el) return;
+  if (t) { el.textContent = '✓ Token sauvegarde (' + t.slice(7, 17) + '...)'; el.classList.add('ok'); }
+  else { el.textContent = 'Aucun token enregistre'; el.classList.remove('ok'); }
+}
+
+async function importerLefive() {
+  const url = document.getElementById('lefiveUrl').value.trim();
+  const token = localStorage.getItem('lefive_token');
+  if (!url) { toast('URL vide !'); return; }
+  if (!token) { toast('Token manquant !'); return; }
+
+  const m = url.match(/\/(\d+)(?:[/?#]|$)/);
+  if (!m) { toast('URL invalide'); return; }
+  const matchId = m[1];
+
+  const btn = document.getElementById('importBtn');
+  btn.disabled = true; btn.textContent = '⏳ Import en cours...';
+
+  try {
+    const r = await fetch('/api/lefive?matchId=' + matchId, {
+      headers: { 'X-Token': token }
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Erreur API');
+    afficherImport(data, matchId);
+    toast('Match importe ✓');
+  } catch (err) {
+    toast('Erreur: ' + err.message);
+    document.getElementById('importResult').innerHTML = '<div style="color:var(--danger);padding:10px;font-size:13px">Erreur: ' + err.message + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '📥 Importer le match';
+  }
+}
+
+let lastImportData = null;
+function afficherImport(data, matchId) {
+  lastImportData = data;
+  const el = document.getElementById('importResult');
+  const teams = data.teams || [];
+  const buts = data.buts || [];
+  const score = data.score || {};
+
+  let html = '<div class="import-summary">';
+  html += '<h4>Match #' + matchId + '</h4>';
+  if (teams.length >= 2) {
+    html += '<div class="import-teams">';
+    html += '<span>' + teams[0].name + '</span>';
+    html += '<span class="import-score">' + (score[teams[0].id] || 0) + ' - ' + (score[teams[1].id] || 0) + '</span>';
+    html += '<span>' + teams[1].name + '</span>';
+    html += '</div>';
+  }
+  html += '<div style="font-size:12px;color:var(--text-muted);text-align:center">' + buts.length + ' buts</div>';
+
+  html += '<div class="import-buts-list">';
+  buts.forEach(b => {
+    html += '<div class="import-but" onclick="playVideo(\'' + b.videoUrl + '\', \'' + (b.playerName || '').replace(/\'/g, "") + '\', ' + b.time + ')">';
+    html += '<div class="import-but-info">';
+    html += '<span class="import-but-time">' + Math.floor(b.time/60) + "'</span>";
+    html += '<span><b>' + (b.playerName || '?') + '</b> · ' + (b.teamName || '') + '</span>';
+    html += '</div>';
+    html += '<span class="import-but-play">▶ Voir le but</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '<button class="btn-primary" style="margin-top:1rem;width:100%" onclick="enregistrerImportComme()">✅ Enregistrer dans l historique BamFC</button>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+function playVideo(url, title, time) {
+  if (!url) { toast('Pas de video disponible'); return; }
+  document.getElementById('videoTitle').textContent = 'But · ' + title + ' (' + Math.floor(time/60) + "')";
+  document.getElementById('videoPlayer').src = url;
+  openModal('modalVideo');
+}
+
+function enregistrerImportComme() {
+  if (!lastImportData) return;
+  const d = lastImportData;
+  const teams = d.teams || [];
+  if (teams.length < 2) { toast('Pas assez d equipes'); return; }
+
+  // Ajouter joueurs absents
+  teams.forEach(team => {
+    team.joueurs.forEach(p => {
+      if (!joueurs.find(j => j.nom === p.name)) {
+        joueurs.push({ id: uid(), nom: p.name, poste: '' });
+      }
+    });
+  });
+  save('bamfc_joueurs', joueurs);
+
+  const butsMap = {};
+  d.buts.forEach(b => {
+    const j = joueurs.find(j => j.nom === b.playerName);
+    if (j) butsMap[j.id] = (butsMap[j.id] || 0) + 1;
+  });
+
+  const match = {
+    id: uid(),
+    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    teams: teams.map(t => ({
+      nom: t.name,
+      joueurs: t.joueurs.map(p => joueurs.find(j => j.nom === p.name)?.id).filter(Boolean),
+      score: d.score[t.id] || 0,
+    })),
+    buts: butsMap,
+    videos: d.buts.filter(b => b.videoUrl).map(b => ({ playerName: b.playerName, time: b.time, url: b.videoUrl })),
+    source: 'lefive',
+  };
+  historique.unshift(match);
+  save('bamfc_historique', historique);
+  renderJoueurs();
+  renderHistorique();
+  renderStats();
+  updateHero();
+  toast('Match ajoute a l historique ✓');
+  document.getElementById('historique').scrollIntoView({ behavior: 'smooth' });
+}
+
+updateTokenStatus();

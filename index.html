@@ -17,6 +17,7 @@
   <div class="nav-links">
     <a href="#joueurs" class="nav-link">Joueurs</a>
     <a href="#match" class="nav-link">Match</a>
+    <a href="#import" class="nav-link">Import</a>
     <a href="#terrain" class="nav-link">Terrain</a>
     <a href="#historique" class="nav-link">Historique</a>
     <a href="#stats" class="nav-link">Stats</a>
@@ -70,6 +71,24 @@
       <div class="buts-section" id="butsSection"></div>
       <button class="btn-primary" onclick="enregistrerMatch()">✅ Enregistrer le match</button>
     </div>
+  </div>
+</section>
+
+<!-- IMPORT LEFIVE -->
+<section class="section" id="import">
+  <div class="section-header">
+    <h2 class="section-title">Import lefive.fr</h2>
+  </div>
+  <div class="import-box">
+    <label class="config-label">Token lefive (1x par mois)</label>
+    <input class="input" type="password" id="lefiveToken" placeholder="Bearer eyJ..." />
+    <button class="btn-ghost" onclick="saveLefiveToken()">Sauvegarder le token</button>
+    <div class="token-status" id="tokenStatus"></div>
+
+    <label class="config-label" style="margin-top:1.5rem">URL du match lefive.fr</label>
+    <input class="input" type="text" id="lefiveUrl" placeholder="https://www.lefive.fr/montreuil/matchs/detail/6947483" />
+    <button class="btn-primary" onclick="importerLefive()" id="importBtn">📥 Importer le match</button>
+    <div id="importResult"></div>
   </div>
 </section>
 
@@ -146,6 +165,19 @@
       <input class="input" type="text" id="inputNom" placeholder="Prénom" maxlength="20" />
       <input class="input" type="text" id="inputPoste" placeholder="Poste (ex: Attaquant)" maxlength="30" />
       <button class="btn-primary full" onclick="ajouterJoueur()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VIDEO -->
+<div class="modal-overlay" id="modalVideo" onclick="closeModalIfBg(event,'modalVideo')">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <span class="modal-title" id="videoTitle">But</span>
+      <button class="modal-close" onclick="closeModal('modalVideo')">×</button>
+    </div>
+    <div class="modal-body">
+      <video id="videoPlayer" controls autoplay style="width:100%;border-radius:8px;background:#000"></video>
     </div>
   </div>
 </div>
