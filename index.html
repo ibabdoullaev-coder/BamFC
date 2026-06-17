@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bam FC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar">
+  <span class="nav-logo">Bam FC</span>
+  <div class="nav-links">
+    <a href="#joueurs" class="nav-link">Joueurs</a>
+    <a href="#match" class="nav-link">Match</a>
+    <a href="#historique" class="nav-link">Historique</a>
+    <a href="#stats" class="nav-link">Stats</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">Cinq contre cinq</div>
+  <h1 class="hero-title">Bam <span class="accent">FC</span></h1>
+  <p class="hero-sub">Les équipes, les scores, la gloire.</p>
+  <div class="hero-stats" id="heroStats">
+    <div class="hstat"><span class="hstat-num" id="heroMatchs">0</span><span class="hstat-label">matchs joués</span></div>
+    <div class="hstat-sep"></div>
+    <div class="hstat"><span class="hstat-num" id="heroJoueurs">0</span><span class="hstat-label">joueurs</span></div>
+    <div class="hstat-sep"></div>
+    <div class="hstat"><span class="hstat-num" id="heroButs">0</span><span class="hstat-label">buts marqués</span></div>
+  </div>
+</header>
+
+<!-- JOUEURS -->
+<section class="section" id="joueurs">
+  <div class="section-header">
+    <h2 class="section-title">Joueurs</h2>
+    <button class="btn-ghost" onclick="openModal('modalJoueur')">+ Ajouter</button>
+  </div>
+  <div class="players-grid" id="playersGrid">
+    <div class="empty-state">Aucun joueur pour l'instant. Ajoute tes potes !</div>
+  </div>
+</section>
+
+<!-- MATCH -->
+<section class="section" id="match">
+  <div class="section-header">
+    <h2 class="section-title">Nouveau match</h2>
+  </div>
+
+  <div class="match-config">
+    <label class="config-label">Format</label>
+    <div class="format-pills">
+      <button class="pill active" data-format="2">2 × 5</button>
+      <button class="pill" data-format="3">3 × 4</button>
+      <button class="pill" data-format="2free">2 libres</button>
+    </div>
+    <button class="btn-primary" onclick="tirerEquipes()">🎲 Tirer au sort</button>
+  </div>
+
+  <div class="teams-wrap" id="teamsWrap" style="display:none">
+    <div class="teams-grid" id="teamsGrid"></div>
+
+    <div class="score-section">
+      <h3 class="subsection-title">Saisir le score</h3>
+      <div class="score-input-row" id="scoreInputRow"></div>
+      <div class="buts-section" id="butsSection"></div>
+      <button class="btn-primary" onclick="enregistrerMatch()">✅ Enregistrer le match</button>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORIQUE -->
+<section class="section" id="historique">
+  <div class="section-header">
+    <h2 class="section-title">Historique</h2>
+    <button class="btn-ghost danger" onclick="clearHistorique()">Tout effacer</button>
+  </div>
+  <div id="historiqueList">
+    <div class="empty-state">Aucun match enregistré.</div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="section" id="stats">
+  <div class="section-header">
+    <h2 class="section-title">Stats & classement</h2>
+  </div>
+  <div class="stats-table-wrap">
+    <table class="stats-table" id="statsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Joueur</th>
+          <th>Matchs</th>
+          <th>Victoires</th>
+          <th>Buts</th>
+          <th>Win %</th>
+        </tr>
+      </thead>
+      <tbody id="statsBody">
+        <tr><td colspan="6" class="empty-state">Aucune donnée.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL JOUEUR -->
+<div class="modal-overlay" id="modalJoueur" onclick="closeModalIfBg(event,'modalJoueur')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Ajouter un joueur</span>
+      <button class="modal-close" onclick="closeModal('modalJoueur')">×</button>
+    </div>
+    <div class="modal-body">
+      <input class="input" type="text" id="inputNom" placeholder="Prénom" maxlength="20" />
+      <input class="input" type="text" id="inputPoste" placeholder="Poste (ex: Attaquant)" maxlength="30" />
+      <button class="btn-primary full" onclick="ajouterJoueur()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
