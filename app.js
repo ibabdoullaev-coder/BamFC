@@ -340,23 +340,114 @@ function renderHistorique() {
     el.innerHTML = '<div class="empty-state">Aucun match enregistré.</div>';
     return;
   }
-  el.innerHTML = historique.map(m => {
+  el.innerHTML = historique.map((m, mi) => {
     const scores = m.teams.map(t => t.score);
     const maxScore = Math.max(...scores);
     const winners = m.teams.filter(t => t.score === maxScore);
     const isNul = winners.length > 1;
-    return `<div class="match-card">
-      <span class="match-date">${m.date}</span>
-      <div class="match-teams">
-        ${m.teams.map((t, i) => {
-          const isWin = !isNul && t.score === maxScore;
-          return `<span class="match-team-name" style="${isWin ? `color:${TEAM_ACCENT[i]}` : ''}">${getJoueursNoms(t.joueurs)}</span>
-            ${i < m.teams.length - 1 ? `<span class="match-score">${m.teams[i].score} – ${m.teams[i+1].score}</span>` : ''}`;
-        }).join('')}
+    const hasVideos = (m.videos || []).length > 0;
+    return `<div class="match-card-wrap">
+      <div class="match-card" onclick="toggleMatchTerrain(${mi})">
+        <span class="match-date">${m.date}</span>
+        <div class="match-teams">
+          ${m.teams.map((t, i) => {
+            const isWin = !isNul && t.score === maxScore;
+            return `<span class="match-team-name" style="${isWin ? `color:${TEAM_ACCENT[i]}` : ''}">${getJoueursNoms(t.joueurs)}</span>
+              ${i < m.teams.length - 1 ? `<span class="match-score">${m.teams[i].score} – ${m.teams[i+1].score}</span>` : ''}`;
+          }).join('')}
+        </div>
+        ${isNul ? '<span class="match-nul">Nul</span>' : `<span class="match-winner">✓ ${winners[0].nom}</span>`}
+        <span class="match-expand">${hasVideos ? '⚽ Voir' : '▾'}</span>
       </div>
-      ${isNul ? '<span class="match-nul">Nul</span>' : `<span class="match-winner">✓ ${winners[0].nom}</span>`}
+      <div class="match-terrain" id="matchTerrain${mi}" style="display:none"></div>
     </div>`;
   }).join('');
+}
+
+function toggleMatchTerrain(mi) {
+  const m = historique[mi];
+  if (!m) return;
+  const el = document.getElementById('matchTerrain' + mi);
+  if (!el) return;
+  if (el.style.display === 'none') {
+    renderHistoriqueTerrain(el, m, mi);
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+}
+
+function renderHistoriqueTerrain(el, m, mi) {
+  // Buts par joueur
+  const butsByPlayer = {};
+  const videosByPlayer = {};
+  (m.videos || []).forEach(v => {
+    const j = joueurs.find(j => j.nom === v.playerName);
+    if (!j) return;
+    if (!videosByPlayer[j.id]) videosByPlayer[j.id] = [];
+    videosByPlayer[j.id].push({ videoUrl: v.url, time: v.time, name: 'But · ' + v.playerName });
+  });
+  Object.keys(m.buts || {}).forEach(jid => {
+    butsByPlayer[jid] = new Array(m.buts[jid]).fill({});
+  });
+
+  el.innerHTML = '<div class="hist-pitch-wrap"><canvas class="hist-pitch-canvas"></canvas><div class="hist-pitch-players"></div></div>';
+
+  const canvas = el.querySelector('.hist-pitch-canvas');
+  const W = el.querySelector('.hist-pitch-wrap').clientWidth || 700;
+  const H = W * 0.65;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+    ctx.fillRect(i * (W/12), 0, W/12, H);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(W/2, 8); ctx.lineTo(W/2, H-8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, H*0.18, 0, Math.PI*2); ctx.stroke();
+  const bw = W*0.13, bh = H*0.55, by = (H-bh)/2;
+  ctx.strokeRect(8, by, bw, bh);
+  ctx.strokeRect(W-8-bw, by, bw, bh);
+
+  const container = el.querySelector('.hist-pitch-players');
+  const posLeft  = [[0.06,0.50],[0.20,0.25],[0.20,0.75],[0.35,0.35],[0.35,0.65]];
+  const posRight = [[0.94,0.50],[0.80,0.25],[0.80,0.75],[0.65,0.35],[0.65,0.65]];
+
+  m.teams.forEach((team, ti) => {
+    const positions = ti === 0 ? posLeft : posRight;
+    const acc = TEAM_ACCENT[ti];
+    team.joueurs.slice(0, 5).forEach((jid, idx) => {
+      const p = joueurs.find(j => j.id === jid);
+      if (!p) return;
+      const pos = positions[idx] || [0.5, ti === 0 ? 0.20 : 0.80];
+      const nbButs = (m.buts || {})[jid] || 0;
+      const col = colorFor(p.nom);
+      const hasGoals = nbButs > 0;
+      const el2 = document.createElement('div');
+      el2.className = 'pitch-player';
+      el2.style.left = (pos[0] * 100) + '%';
+      el2.style.top = (pos[1] * 100) + '%';
+      const avatarHtml = p.photo
+        ? '<div class="pp-avatar" style="background-image:url(\'' + p.photo + '\');background-size:cover;background-position:center"></div>'
+        : '<div class="pp-avatar" style="background:' + col.bg + ';color:' + col.text + '">' + initials(p.nom) + '</div>';
+      el2.innerHTML = '<div class="pp-card' + (hasGoals ? ' has-goals' : '') + '" style="border-color:' + acc + '">' +
+        (hasGoals ? '<span class="pp-badge" style="background:' + acc + '">⚽ ' + nbButs + '</span>' : '') +
+        avatarHtml +
+        '<div class="pp-name">' + p.nom + '</div>' +
+      '</div>';
+      el2.onclick = () => {
+        const vids = videosByPlayer[jid];
+        if (!vids || !vids.length) { toast(p.nom + ' n a pas de video disponible'); return; }
+        if (vids.length === 1) playVideo(vids[0].videoUrl, p.nom, vids[0].time);
+        else showPlayerGoals({ name: p.nom }, vids);
+      };
+      container.appendChild(el2);
+    });
+  });
 }
 
 function getJoueursNoms(ids) {
