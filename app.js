@@ -56,6 +56,7 @@ async function syncFromCloud() {
     renderJoueurs();
     renderHistorique();
     renderStats();
+    renderSideLeaderboard();
     updateHero();
     console.log('Synced from cloud');
   } catch (e) { console.warn('Sync error:', e); }
