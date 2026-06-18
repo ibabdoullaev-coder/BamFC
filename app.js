@@ -1,3 +1,34 @@
+// ─── ADMIN MODE ──────────────────────────────────────────
+const ADMIN_PASS = 'bam2026';
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('admin') === ADMIN_PASS) {
+  localStorage.setItem('bamfc_admin', '1');
+  // nettoyer l URL
+  window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+}
+const isAdmin = localStorage.getItem('bamfc_admin') === '1';
+
+function applyAdminMode() {
+  document.body.classList.toggle('is-admin', isAdmin);
+  document.body.classList.toggle('is-viewer', !isAdmin);
+  if (isAdmin) {
+    setTimeout(() => {
+      const after = document.body;
+      after.addEventListener('click', e => {
+        const rect = { right: window.innerWidth - 16, bottom: window.innerHeight - 16 };
+        if (e.clientX > rect.right - 80 && e.clientY > rect.bottom - 35) {
+          if (confirm('Se deconnecter du mode admin ?')) logoutAdmin();
+        }
+      });
+    }, 100);
+  }
+}
+
+function logoutAdmin() {
+  localStorage.removeItem('bamfc_admin');
+  location.reload();
+}
+
 // ─── SUPABASE ────────────────────────────────────────────
 const SUPABASE_URL = 'https://hnaffjcibgdgikhqxdlo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UMi-xWMKmgT5HekfNmHcsw_ljQ-A-P2';
@@ -561,6 +592,7 @@ function resetPositions() { playerPositions = {}; renderTerrain(); }
 window.addEventListener('resize', () => { if (currentTeams.length) renderTerrain(); });
 
 // ─── INIT ─────────────────────────────────────────────────
+applyAdminMode();
 renderJoueurs();
 renderHistorique();
 renderStats();
