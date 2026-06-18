@@ -473,6 +473,8 @@ function clearHistorique() {
 }
 
 // ─── STATS ───────────────────────────────────────────────
+let statsSortMode = 'victoires';
+
 function renderStats() {
   const tbody = document.getElementById('statsBody');
   if (!joueurs.length) {
@@ -494,7 +496,15 @@ function renderStats() {
     return { ...j, matchs, victoires, buts, winPct: matchs ? Math.round((victoires / matchs) * 100) : 0 };
   });
 
-  stats.sort((a, b) => b.victoires - a.victoires || b.buts - a.buts);
+  if (statsSortMode === 'victoires') stats.sort((a, b) => b.victoires - a.victoires || b.buts - a.buts);
+  else if (statsSortMode === 'buts') stats.sort((a, b) => b.buts - a.buts || b.victoires - a.victoires);
+  else if (statsSortMode === 'matchs') stats.sort((a, b) => b.matchs - a.matchs || b.victoires - a.victoires);
+  else if (statsSortMode === 'winPct') stats.sort((a, b) => b.winPct - a.winPct || b.victoires - a.victoires);
+
+  // Update active class on sort pills
+  document.querySelectorAll('.stats-sort-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.sort === statsSortMode);
+  });
 
   tbody.innerHTML = stats.map((j, i) => {
     const col = colorFor(j.nom);
@@ -948,3 +958,8 @@ function enregistrerImportComme() {
 }
 
 updateTokenStatus();
+
+function setStatsSort(mode) {
+  statsSortMode = mode;
+  renderStats();
+}

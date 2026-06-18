@@ -134,6 +134,12 @@
 <section class="section" id="stats">
   <div class="section-header">
     <h2 class="section-title">Stats & classement</h2>
+    <div class="format-pills" style="flex-wrap:wrap">
+      <button class="pill stats-sort-pill active" data-sort="victoires" onclick="setStatsSort('victoires')">🏆 Victoires</button>
+      <button class="pill stats-sort-pill" data-sort="buts" onclick="setStatsSort('buts')">⚽ Buts</button>
+      <button class="pill stats-sort-pill" data-sort="matchs" onclick="setStatsSort('matchs')">📅 Matchs</button>
+      <button class="pill stats-sort-pill" data-sort="winPct" onclick="setStatsSort('winPct')">% Win</button>
+    </div>
   </div>
   <div class="stats-table-wrap">
     <table class="stats-table" id="statsTable">
@@ -180,6 +186,13 @@
       <video id="videoPlayer" controls autoplay style="width:100%;border-radius:8px;background:#000"></video>
     </div>
   </div>
+</div>
+
+<!-- SIDE NAV -->
+<div class="side-nav">
+  <a href="#joueurs" title="Joueurs">👥</a>
+  <a href="#historique" title="Historique">📜</a>
+  <a href="#stats" title="Stats">🏆</a>
 </div>
 
 <!-- TOAST -->
