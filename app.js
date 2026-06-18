@@ -8,6 +8,10 @@ if (urlParams.get('admin') === ADMIN_PASS) {
 }
 const isAdmin = localStorage.getItem('bamfc_admin') === '1';
 
+// Appliquer immediatement
+document.documentElement.classList.toggle('is-admin', isAdmin);
+document.documentElement.classList.toggle('is-viewer', !isAdmin);
+
 function applyAdminMode() {
   document.body.classList.toggle('is-admin', isAdmin);
   document.body.classList.toggle('is-viewer', !isAdmin);

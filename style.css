@@ -477,20 +477,20 @@ td.empty-state { padding: 2rem; }
 .pp-name { font-size: 9px; font-weight: 700; color: #fff; margin-top: 3px; text-align: center; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ADMIN MODE */
-body.is-viewer #import,
-body.is-viewer [href="#import"],
-body.is-viewer #match .match-config,
-body.is-viewer [href="#match"],
-body.is-viewer #terrain,
-body.is-viewer [href="#terrain"],
-body.is-viewer .player-delete,
-body.is-viewer .player-edit-hint,
-body.is-viewer #joueurs .btn-ghost,
-body.is-viewer #historique .btn-ghost.danger { display: none !important; }
+.is-viewer #import,
+.is-viewer [href="#import"],
+.is-viewer #match .match-config,
+.is-viewer [href="#match"],
+.is-viewer #terrain,
+.is-viewer [href="#terrain"],
+.is-viewer .player-delete,
+.is-viewer .player-edit-hint,
+.is-viewer #joueurs .btn-ghost,
+.is-viewer #historique .btn-ghost.danger { display: none !important; }
 
-body.is-viewer .player-card { cursor: default; }
+.is-viewer .player-card { cursor: default; }
 
-body.is-admin::after {
+.is-admin::after {
   content: '⚙ ADMIN';
   position: fixed; bottom: 16px; right: 16px;
   background: var(--accent); color: #0D0D0D;
