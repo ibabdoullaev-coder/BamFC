@@ -476,10 +476,11 @@ td.empty-state { padding: 2rem; }
 .pp-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; }
 .pp-name { font-size: 9px; font-weight: 700; color: #fff; margin-top: 3px; text-align: center; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ADMIN MODE */
+/* ADMIN/COACH/VIEWER MODE */
+/* Viewer: cache tout sauf joueurs/historique/stats */
 .is-viewer #import,
 .is-viewer [href="#import"],
-.is-viewer #match .match-config,
+.is-viewer #match,
 .is-viewer [href="#match"],
 .is-viewer #terrain,
 .is-viewer [href="#terrain"],
@@ -489,6 +490,18 @@ td.empty-state { padding: 2rem; }
 .is-viewer #historique .btn-ghost.danger { display: none !important; }
 
 .is-viewer .player-card { cursor: default; }
+
+/* Coach: voit #match mais pas Import / Terrain / admin tools */
+.is-coach:not(.is-admin) #import,
+.is-coach:not(.is-admin) [href="#import"],
+.is-coach:not(.is-admin) #terrain,
+.is-coach:not(.is-admin) [href="#terrain"],
+.is-coach:not(.is-admin) .player-delete,
+.is-coach:not(.is-admin) .player-edit-hint,
+.is-coach:not(.is-admin) #joueurs .btn-ghost,
+.is-coach:not(.is-admin) #historique .btn-ghost.danger { display: none !important; }
+
+.is-coach:not(.is-admin) .player-card { cursor: default; }
 
 .is-admin::after {
   content: '⚙ ADMIN';

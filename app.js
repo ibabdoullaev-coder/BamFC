@@ -1,20 +1,27 @@
 // ─── ADMIN MODE ──────────────────────────────────────────
 const ADMIN_PASS = 'bam2026';
+const COACH_PASS = 'bamcoach';
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('admin') === ADMIN_PASS) {
   localStorage.setItem('bamfc_admin', '1');
-  // nettoyer l URL
+  localStorage.removeItem('bamfc_coach');
+  window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+} else if (urlParams.get('coach') === COACH_PASS) {
+  localStorage.setItem('bamfc_coach', '1');
   window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 }
 const isAdmin = localStorage.getItem('bamfc_admin') === '1';
+const isCoach = isAdmin || localStorage.getItem('bamfc_coach') === '1';
 
 // Appliquer immediatement
 document.documentElement.classList.toggle('is-admin', isAdmin);
-document.documentElement.classList.toggle('is-viewer', !isAdmin);
+document.documentElement.classList.toggle('is-coach', isCoach);
+document.documentElement.classList.toggle('is-viewer', !isCoach);
 
 function applyAdminMode() {
   document.body.classList.toggle('is-admin', isAdmin);
-  document.body.classList.toggle('is-viewer', !isAdmin);
+  document.body.classList.toggle('is-coach', isCoach);
+  document.body.classList.toggle('is-viewer', !isCoach);
   if (isAdmin) {
     setTimeout(() => {
       const after = document.body;
