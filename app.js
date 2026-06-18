@@ -702,7 +702,6 @@ applyAdminMode();
 renderJoueurs();
 renderHistorique();
 renderStats();
-renderSideLeaderboard();
 updateHero();
 syncFromCloud();
 
@@ -966,66 +965,4 @@ function setStatsSort(mode) {
   renderStats();
 }
 
-// ─── SIDE LEADERBOARD ─────────────────────────────────────
-let sideLbSort = 'victoires';
 
-function setSideLb(mode) {
-  sideLbSort = mode;
-  document.querySelectorAll('.sl-tab').forEach(t => t.classList.toggle('active', t.dataset.sort === mode));
-  renderSideLeaderboard();
-}
-
-function renderSideLeaderboard() {
-  const el = document.getElementById('sideLeaderboardList');
-  if (!el) return;
-  if (!joueurs.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px 4px">Aucun joueur</div>'; return; }
-
-  const stats = joueurs.map(j => {
-    let matchs = 0, victoires = 0, buts = 0;
-    historique.forEach(m => {
-      const myTeam = m.teams.find(t => t.joueurs.includes(j.id));
-      if (!myTeam) return;
-      matchs++;
-      buts += m.buts[j.id] || 0;
-      const maxScore = Math.max(...m.teams.map(t => t.score));
-      const isNul = m.teams.filter(t => t.score === maxScore).length > 1;
-      if (!isNul && myTeam.score === maxScore) victoires++;
-    });
-    return { ...j, matchs, victoires, buts, winPct: matchs ? Math.round((victoires / matchs) * 100) : 0 };
-  });
-
-  if (sideLbSort === 'victoires') stats.sort((a, b) => b.victoires - a.victoires || b.buts - a.buts);
-  else if (sideLbSort === 'buts') stats.sort((a, b) => b.buts - a.buts || b.victoires - a.victoires);
-  else if (sideLbSort === 'matchs') stats.sort((a, b) => b.matchs - a.matchs);
-  else if (sideLbSort === 'winPct') stats.sort((a, b) => b.winPct - a.winPct || b.victoires - a.victoires);
-
-  el.innerHTML = stats.map((j, i) => {
-    const col = colorFor(j.nom);
-    const rank = i + 1;
-    const val = j[sideLbSort];
-    const valDisplay = sideLbSort === 'winPct' ? val + '%' : val;
-    const avatar = j.photo
-      ? `<div class="sl-avatar" style="background-image:url('${j.photo}')"></div>`
-      : `<div class="sl-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
-    return `<div class="sl-row">
-      <span class="sl-rank ${rank <= 3 ? 'top' : ''}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</span>
-      ${avatar}
-      <span class="sl-name">${j.nom}</span>
-      <span class="sl-val">${valDisplay}</span>
-    </div>`;
-  }).join('');
-}
-
-function toggleLeaderboard() {
-  const lb = document.getElementById('sideLeaderboard');
-  const btn = document.getElementById('slReopen');
-  if (!lb || !btn) return;
-  const collapsed = lb.classList.toggle('collapsed');
-  btn.style.display = collapsed ? '' : 'none';
-  localStorage.setItem('bamfc_lb_collapsed', collapsed ? '1' : '0');
-}
-
-// Init au demarrage
-if (localStorage.getItem('bamfc_lb_collapsed') === '1') {
-  setTimeout(toggleLeaderboard, 50);
-}

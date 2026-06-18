@@ -188,23 +188,6 @@
   </div>
 </div>
 
-<!-- SIDE LEADERBOARD -->
-<aside class="side-leaderboard" id="sideLeaderboard">
-  <div class="sl-header">
-    <h3>🏆 Classement</h3>
-    <button class="sl-toggle" onclick="toggleLeaderboard()" title="Masquer">⟨</button>
-  </div>
-  <div class="sl-tabs">
-    <button class="sl-tab active" data-sort="victoires" onclick="setSideLb('victoires')">V</button>
-    <button class="sl-tab" data-sort="buts" onclick="setSideLb('buts')">⚽</button>
-    <button class="sl-tab" data-sort="matchs" onclick="setSideLb('matchs')">M</button>
-    <button class="sl-tab" data-sort="winPct" onclick="setSideLb('winPct')">%</button>
-  </div>
-  <div class="sl-list" id="sideLeaderboardList"></div>
-</aside>
-
-<button class="sl-reopen" id="slReopen" onclick="toggleLeaderboard()" style="display:none">🏆</button>
-
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
