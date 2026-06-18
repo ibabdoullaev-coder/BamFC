@@ -523,20 +523,26 @@ td.empty-state { padding: 2rem; }
 
 /* MAIN LAYOUT WITH STICKY STATS */
 @media (min-width: 1100px) {
-  .hero { padding-right: calc(360px + 2rem); }
-  .section { padding-right: calc(360px + 2rem); max-width: none; padding-left: calc((100vw - 900px - 360px) / 2); }
+  .hero, .section { padding-right: calc(440px + 3rem); max-width: none; padding-left: calc((100vw - 900px - 440px) / 2); }
+  .hero { padding-left: 0; padding-right: 0; }
   #stats {
     position: fixed; right: 24px; top: 72px;
-    width: 340px; max-height: calc(100vh - 96px);
-    padding: 1rem !important; margin: 0 !important;
+    width: 420px; max-height: calc(100vh - 96px);
+    padding: 1.25rem !important; margin: 0 !important;
     background: var(--bg-card); border: 0.5px solid var(--border);
     border-radius: var(--radius-lg);
     overflow-y: auto;
     z-index: 30;
   }
   #stats .section-header { margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
-  #stats .section-title { font-size: 16px; }
-  #stats .stats-table th, #stats .stats-table td { padding: 6px 8px; font-size: 12px; }
-  #stats .stat-avatar { width: 20px; height: 20px; font-size: 9px; margin-right: 4px; }
-  #stats .win-bar-bg { max-width: 40px; }
+  #stats .section-title { font-size: 17px; }
+  #stats .stats-table th { padding: 8px 6px; font-size: 11px; }
+  #stats .stats-table td { padding: 8px 6px; font-size: 13px; }
+  #stats .stat-avatar { width: 22px; height: 22px; font-size: 10px; margin-right: 6px; }
+  #stats .win-bar-bg { max-width: 50px; }
+  /* Section match: horizontal large */
+  #match .match-config { justify-content: flex-start; gap: 1.5rem; padding: 1.5rem; background: var(--bg-card); border-radius: var(--radius-lg); border: 0.5px solid var(--border); }
+  #match .match-config .pill { font-size: 14px; padding: 8px 18px; }
+  #match .match-config .btn-primary { padding: 12px 28px; font-size: 15px; }
+  #match .section-title { font-size: 24px; }
 }
