@@ -1,3 +1,52 @@
+// ─── SUPABASE ────────────────────────────────────────────
+const SUPABASE_URL = 'https://hnaffjcibgdgikhqxdlo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_UMi-xWMKmgT5HekfNmHcsw_ljQ-A-P2';
+const sb = window.supabase?.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function syncFromCloud() {
+  if (!sb) return;
+  try {
+    const [{ data: j }, { data: h }] = await Promise.all([
+      sb.from('joueurs').select('*'),
+      sb.from('historique').select('*').order('created_at', { ascending: false })
+    ]);
+    if (j) {
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null }));
+      localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
+    }
+    if (h) {
+      historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null }));
+      localStorage.setItem('bamfc_historique', JSON.stringify(historique));
+    }
+    renderJoueurs();
+    renderHistorique();
+    renderStats();
+    updateHero();
+    console.log('Synced from cloud');
+  } catch (e) { console.warn('Sync error:', e); }
+}
+
+async function pushJoueur(j) {
+  if (!sb) return;
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo });
+}
+async function deleteJoueurCloud(id) {
+  if (!sb) return;
+  await sb.from('joueurs').delete().eq('id', id);
+}
+async function pushMatch(m) {
+  if (!sb) return;
+  await sb.from('historique').upsert({ id: m.id, date: m.date, teams: m.teams, buts: m.buts, videos: m.videos || [], source: m.source || null });
+}
+async function deleteMatchCloud(id) {
+  if (!sb) return;
+  await sb.from('historique').delete().eq('id', id);
+}
+async function clearHistoriqueCloud() {
+  if (!sb) return;
+  await sb.from('historique').delete().neq('id', '');
+}
+
 // ─── STATE ───────────────────────────────────────────────
 const COLORS = [
   { bg: '#1a3a2a', text: '#4AFF6A' },
@@ -37,8 +86,10 @@ function ajouterJoueur() {
   const nom = document.getElementById('inputNom').value.trim();
   const poste = document.getElementById('inputPoste').value.trim();
   if (!nom) return;
-  joueurs.push({ id: uid(), nom, poste });
+  const newJ = { id: uid(), nom, poste };
+  joueurs.push(newJ);
   save('bamfc_joueurs', joueurs);
+  pushJoueur(newJ);
   closeModal('modalJoueur');
   document.getElementById('inputNom').value = '';
   document.getElementById('inputPoste').value = '';
@@ -50,6 +101,7 @@ function ajouterJoueur() {
 function supprimerJoueur(id) {
   joueurs = joueurs.filter(j => j.id !== id);
   save('bamfc_joueurs', joueurs);
+  deleteJoueurCloud(id);
   renderJoueurs();
   updateHero();
 }
@@ -62,11 +114,15 @@ function renderJoueurs() {
   }
   grid.innerHTML = joueurs.map(j => {
     const col = colorFor(j.nom);
-    return `<div class="player-card">
-      <button class="player-delete" onclick="supprimerJoueur('${j.id}')" title="Supprimer">×</button>
-      <div class="player-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>
+    const avatar = j.photo
+      ? `<div class="player-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center"></div>`
+      : `<div class="player-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+    return `<div class="player-card" onclick="openPhotoModal('${j.id}')">
+      <button class="player-delete" onclick="event.stopPropagation();supprimerJoueur('${j.id}')" title="Supprimer">×</button>
+      ${avatar}
       <div class="player-name">${j.nom}</div>
       ${j.poste ? `<div class="player-poste">${j.poste}</div>` : ''}
+      <div class="player-edit-hint">📷 Photo</div>
     </div>`;
   }).join('');
 }
@@ -237,6 +293,7 @@ function enregistrerMatch() {
   };
   historique.unshift(match);
   save('bamfc_historique', historique);
+  pushMatch(match);
   renderHistorique();
   renderStats();
   updateHero();
@@ -283,6 +340,7 @@ function clearHistorique() {
   if (!confirm('Effacer tout l\'historique ?')) return;
   historique = [];
   save('bamfc_historique', historique);
+  clearHistoriqueCloud();
   renderHistorique();
   renderStats();
   updateHero();
@@ -507,6 +565,7 @@ renderJoueurs();
 renderHistorique();
 renderStats();
 updateHero();
+syncFromCloud();
 
 // ─── IMPORT LEFIVE ───────────────────────────────────────
 function saveLefiveToken() {
@@ -616,32 +675,37 @@ function afficherImport(data, matchId) {
 function renderMatchPitch(teams, butsByPlayer) {
   const canvas = document.getElementById('pitchCanvas');
   if (!canvas) return;
-  const W = canvas.parentElement.clientWidth || 500;
-  const H = W * 1.4;
+  const W = canvas.parentElement.clientWidth || 700;
+  const H = W * 0.65;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Pelouse
+  // Pelouse - bandes verticales
   for (let i = 0; i < 12; i++) {
     ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
-    ctx.fillRect(0, i * (H/12), W, H/12);
+    ctx.fillRect(i * (W/12), 0, W/12, H);
   }
   ctx.strokeStyle = 'rgba(255,255,255,0.85)';
   ctx.lineWidth = 2;
   ctx.strokeRect(8, 8, W-16, H-16);
-  ctx.beginPath(); ctx.moveTo(8, H/2); ctx.lineTo(W-8, H/2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(W/2, H/2, W*0.13, 0, Math.PI*2); ctx.stroke();
+  // Ligne mediane verticale
+  ctx.beginPath(); ctx.moveTo(W/2, 8); ctx.lineTo(W/2, H-8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, H*0.18, 0, Math.PI*2); ctx.stroke();
+  // Surfaces de reparation
+  const bw = W*0.13, bh = H*0.55, by = (H-bh)/2;
+  ctx.strokeRect(8, by, bw, bh);
+  ctx.strokeRect(W-8-bw, by, bw, bh);
 
   const container = document.getElementById('pitchPlayers');
   container.innerHTML = '';
 
-  // Positions pour 5 joueurs - équipe haut puis bas
-  const posTop = [[0.5,0.10],[0.22,0.25],[0.78,0.25],[0.35,0.40],[0.65,0.40]];
-  const posBot = [[0.5,0.90],[0.22,0.75],[0.78,0.75],[0.35,0.60],[0.65,0.60]];
+  // Positions pour 5 joueurs - equipe gauche puis droite (horizontal)
+  const posLeft  = [[0.06,0.50],[0.20,0.25],[0.20,0.75],[0.35,0.35],[0.35,0.65]];
+  const posRight = [[0.94,0.50],[0.80,0.25],[0.80,0.75],[0.65,0.35],[0.65,0.65]];
 
   [0, 1].forEach(ti => {
     const team = teams[ti];
-    const positions = ti === 0 ? posTop : posBot;
+    const positions = ti === 0 ? posLeft : posRight;
     const acc = ti === 0 ? '#4AB8FF' : '#4AFF6A';
     team.joueurs.slice(0, 5).forEach((p, idx) => {
       const pos = positions[idx] || [0.5, ti === 0 ? 0.20 : 0.80];
@@ -746,6 +810,8 @@ function enregistrerImportComme() {
   };
   historique.unshift(match);
   save('bamfc_historique', historique);
+  pushMatch(match);
+  joueurs.forEach(jj => pushJoueur(jj));
   renderJoueurs();
   renderHistorique();
   renderStats();
