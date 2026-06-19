@@ -519,7 +519,7 @@ function renderHistorique() {
         <div class="match-teams">
           ${m.teams.map((t, i) => {
             const isWin = !isNul && t.score === maxScore;
-            return `<span class="match-team-name" style="${isWin ? `color:${TEAM_ACCENT[i]}` : ''}">${getJoueursNoms(t.joueurs)}</span>
+            return `<span class="match-team-name" style="color:${isWin ? 'var(--accent)' : 'var(--text)'}">${getJoueursNoms(t.joueurs)}</span>
               ${i < m.teams.length - 1 ? `<span class="match-score">${m.teams[i].score} – ${m.teams[i+1].score}</span>` : ''}`;
           }).join('')}
         </div>
@@ -1205,7 +1205,7 @@ function renderPronos() {
     const titreAffich = p.nom || p.date;
     return `<div class="match-card-wrap">
       <div class="match-card" onclick="togglePronoTerrain(${pi})">
-        ${isAdmin ? `<button class="match-delete" data-pid="${p.id}">×</button>` : ''}
+        ${isCoach ? `<button class="match-delete" data-pid="${p.id}">×</button>` : ''}
         <span class="match-date">${titreAffich}</span>
         <div class="match-teams" style="flex-direction:column;align-items:flex-start;gap:4px">${teamsHtml}</div>
         <span class="match-expand">⚽</span>
@@ -1764,6 +1764,10 @@ function maybeShowLoginNudge() {
           <path d="M20 70 Q20 35 60 25 Q100 35 100 70 L100 125 L20 125 Z" fill="#4a3fb8" stroke="#1a1a1a" stroke-width="3"/>
           <!-- visage ovale -->
           <ellipse cx="60" cy="60" rx="28" ry="34" fill="#f4d5c1" stroke="#1a1a1a" stroke-width="3"/>
+          <!-- cheveux noirs sortant de la capuche -->
+          <path d="M40 42 Q44 36 50 38 Q55 35 60 36 Q66 34 72 37 Q78 36 82 42 Q80 50 75 48 Q70 46 65 47 Q60 45 55 47 Q50 46 45 48 Q40 50 40 42 Z" fill="#1a1a1a"/>
+          <!-- meche sur front -->
+          <path d="M52 44 Q55 50 50 54" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
           <!-- capuche bord -->
           <path d="M32 60 Q32 30 60 26 Q88 30 88 60" fill="none" stroke="#1a1a1a" stroke-width="3"/>
           <!-- yeux tristes -->
