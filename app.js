@@ -157,6 +157,7 @@ async function syncFromCloud() {
     renderBench();
     updateHero();
     console.log('Synced from cloud');
+    maybeShowLoginNudge();
     syncPronos();
   } catch (e) { console.warn('Sync error:', e); }
 }
@@ -1510,7 +1511,7 @@ function openPhotoModal(playerId) {
   const j = joueurs.find(j => j.id === playerId);
   if (!j) return;
   const myId = getMyPlayerId();
-  if (!isAdmin && !isCoach && myId !== playerId) {
+  if (!isAdmin && myId !== playerId) {
     toast('Seul ' + j.nom + ' peut changer sa photo');
     return;
   }
@@ -1732,3 +1733,54 @@ async function confirmMerge(targetId) {
   updateHero();
   toast(sourceIds.length + ' joueur(s) fusionne(s) dans ' + target.nom);
 }
+
+// ─── POPUP CONNEXION ─────────────────────────────────────
+function maybeShowLoginNudge() {
+  // Pas si admin / coach / deja identifie
+  if (isAdmin || getMyPlayerId()) return;
+  // Pas si deja vu dans les 7 derniers jours
+  const last = parseInt(localStorage.getItem('bamfc_nudge_last') || '0');
+  if (Date.now() - last < 7 * 24 * 3600 * 1000) return;
+
+  setTimeout(() => {
+    const n = document.createElement('div');
+    n.className = 'login-nudge';
+    n.innerHTML = `
+      <button class="ln-close" onclick="dismissNudge()">×</button>
+      <div class="ln-art" aria-hidden="true">
+        <svg viewBox="0 0 120 130" width="80" height="86" xmlns="http://www.w3.org/2000/svg">
+          <!-- sweat capuche -->
+          <path d="M20 70 Q20 35 60 25 Q100 35 100 70 L100 125 L20 125 Z" fill="#4a3fb8" stroke="#1a1a1a" stroke-width="3"/>
+          <!-- visage ovale -->
+          <ellipse cx="60" cy="60" rx="28" ry="34" fill="#f4d5c1" stroke="#1a1a1a" stroke-width="3"/>
+          <!-- capuche bord -->
+          <path d="M32 60 Q32 30 60 26 Q88 30 88 60" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+          <!-- yeux tristes -->
+          <ellipse cx="49" cy="58" rx="2.5" ry="3.5" fill="#1a1a1a"/>
+          <ellipse cx="71" cy="58" rx="2.5" ry="3.5" fill="#1a1a1a"/>
+          <!-- sourcils tombants -->
+          <path d="M43 50 Q49 52 55 51" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M65 51 Q71 52 77 50" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- bouche en U inverse -->
+          <path d="M50 78 Q60 70 70 78" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="ln-text">
+        <h4>Eh, t'as oublié de te connecter !</h4>
+        <p>Connecte-toi pour mettre ta photo et pronostiquer tes buts.</p>
+        <button class="btn-primary" onclick="dismissNudge(true);openIdentityModal()">Qui es-tu ?</button>
+      </div>
+    `;
+    document.body.appendChild(n);
+    setTimeout(() => n.classList.add('show'), 100);
+  }, 3000);
+}
+
+function dismissNudge(remember) {
+  const n = document.querySelector('.login-nudge');
+  if (n) { n.classList.remove('show'); setTimeout(() => n.remove(), 300); }
+  if (remember) localStorage.setItem('bamfc_nudge_last', Date.now().toString());
+  else localStorage.setItem('bamfc_nudge_last', (Date.now() - 6 * 24 * 3600 * 1000).toString()); // re-affiche dans 1 jour
+}
+
+// Appel apres sync
