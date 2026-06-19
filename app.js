@@ -351,6 +351,11 @@ function getCountry(code) {
   return COUNTRIES.find(c => c.code === code);
 }
 
+function getCountryFlagUrl(code) {
+  if (!code) return null;
+  return `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+}
+
 const FIFA_STATS_DEFAULT = [
   { key: 'PAC', label: 'PAC', value: 70 },
   { key: 'SHO', label: 'SHO', value: 70 },
@@ -389,7 +394,8 @@ function makeFutCard(j, sizeClass) {
     ? `<div class="fut-photo" style="background-image:url('${j.photo}')"></div>`
     : `<div class="fut-photo fut-photo-initials" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
 
-  const country = getCountry(j.country) || { flag: '🇫🇷' };
+  const country = getCountry(j.country || 'FR') || { code: 'FR', n: 'France' };
+  const flagUrl = getCountryFlagUrl(country.code);
   const clubLogo = getClubLogo(j.club);
   const clubHtml = clubLogo
     ? `<img class="fut-club-logo" src="${clubLogo}" onerror="this.style.display='none'" alt="" />`
@@ -410,7 +416,7 @@ function makeFutCard(j, sizeClass) {
       <div class="fut-left-col">
         <div class="fut-rating">${rating}</div>
         <div class="fut-pos">${j.poste || 'JR'}</div>
-        <div class="fut-flag">${country.flag}</div>
+        <img class="fut-flag" src="${flagUrl}" alt="${country.code}" onerror="this.style.display='none'" />
         ${clubHtml}
       </div>
       <div class="fut-right-col">
@@ -1994,24 +2000,38 @@ function maybeShowLoginNudge() {
       <button class="ln-close" onclick="dismissNudge()">×</button>
       <div class="ln-art" aria-hidden="true">
         <svg viewBox="0 0 140 150" width="92" height="100" xmlns="http://www.w3.org/2000/svg">
-          <!-- capuche derriere (bleu/violet) -->
-          <path d="M15 88 Q10 50 30 35 Q50 22 70 22 Q90 22 110 35 Q130 50 125 88 L125 148 L15 148 Z" fill="#3d3492" stroke="#1a1a1a" stroke-width="2.5"/>
-          <!-- bord capuche autour visage -->
-          <path d="M35 55 Q30 32 70 28 Q110 32 105 55 Q108 70 100 78" fill="#3d3492" stroke="#1a1a1a" stroke-width="2.5"/>
-          <!-- visage en forme de gourde/ovale dessine main -->
-          <path d="M45 50 Q40 65 42 90 Q44 115 70 118 Q96 115 98 90 Q100 65 95 50 Q88 38 70 38 Q52 38 45 50 Z" fill="#f7e1cf" stroke="#1a1a1a" stroke-width="2.5"/>
-          <!-- ombre dans capuche -->
-          <path d="M42 50 Q40 55 42 60" fill="none" stroke="#2a1f6f" stroke-width="2"/>
-          <path d="M98 50 Q100 55 98 60" fill="none" stroke="#2a1f6f" stroke-width="2"/>
-          <!-- yeux ronds vides style cartoon -->
-          <circle cx="58" cy="70" r="3.5" fill="#1a1a1a"/>
-          <circle cx="82" cy="70" r="3.5" fill="#1a1a1a"/>
-          <!-- nez petit trait -->
-          <path d="M70 78 Q68 85 70 88" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-          <!-- bouche triste petite -->
-          <path d="M60 100 Q70 94 80 100" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
-          <!-- bord visage cote -->
-          <path d="M44 90 Q42 100 45 108" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+          <!-- sweat shirt corps -->
+          <path d="M10 105 Q12 95 25 92 L55 88 L85 88 L115 92 Q128 95 130 105 L130 150 L10 150 Z" fill="#4a3fb8" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- col du sweat -->
+          <path d="M48 88 Q56 95 70 95 Q84 95 92 88" fill="#3530a0" stroke="#1a1a1a" stroke-width="2"/>
+          <!-- capuche bleue derriere la tete -->
+          <path d="M20 78 Q10 35 40 22 Q55 18 70 18 Q85 18 100 22 Q130 35 120 78 Q125 88 115 92 L25 92 Q15 88 20 78 Z" fill="#4a3fb8" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- cordons capuche -->
+          <line x1="55" y1="92" x2="55" y2="108" stroke="#1a1a1a" stroke-width="1.5"/>
+          <line x1="85" y1="92" x2="85" y2="108" stroke="#1a1a1a" stroke-width="1.5"/>
+          <circle cx="55" cy="110" r="2" fill="#1a1a1a"/>
+          <circle cx="85" cy="110" r="2" fill="#1a1a1a"/>
+          <!-- visage rond peau -->
+          <path d="M40 55 Q38 48 42 42 Q50 32 70 32 Q90 32 98 42 Q102 48 100 55 Q102 75 95 88 Q85 95 70 95 Q55 95 45 88 Q38 75 40 55 Z" fill="#f5d5b8" stroke="#1a1a1a" stroke-width="2"/>
+          <!-- cheveux noirs sous capuche -->
+          <path d="M42 50 Q44 38 52 36 Q60 32 70 32 Q80 32 88 36 Q96 38 98 50 Q92 46 85 47 Q78 45 70 46 Q62 45 55 47 Q48 46 42 50 Z" fill="#0a0a0a"/>
+          <path d="M50 48 Q52 54 48 58" fill="none" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- sourcils -->
+          <path d="M48 58 Q53 56 58 58" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round"/>
+          <path d="M82 58 Q87 56 92 58" fill="none" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round"/>
+          <!-- yeux fermes/petits -->
+          <circle cx="55" cy="65" r="2.5" fill="#1a1a1a"/>
+          <circle cx="85" cy="65" r="2.5" fill="#1a1a1a"/>
+          <!-- highlight yeux -->
+          <circle cx="54" cy="64" r="0.8" fill="#fff"/>
+          <circle cx="84" cy="64" r="0.8" fill="#fff"/>
+          <!-- nez -->
+          <path d="M70 70 Q68 76 70 80 Q72 82 73 80" fill="none" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- bouche fermée petite -->
+          <path d="M62 85 Q70 88 78 85" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+          <!-- ombres joues -->
+          <ellipse cx="50" cy="76" rx="4" ry="2" fill="rgba(220,150,120,0.3)"/>
+          <ellipse cx="90" cy="76" rx="4" ry="2" fill="rgba(220,150,120,0.3)"/>
         </svg>
       </div>
       <div class="ln-text">

@@ -809,15 +809,17 @@ td.empty-state { padding: 2rem; }
 }
 .fut-card-large .fut-pos { font-size: 13px; margin-bottom: 4px; }
 .fut-flag {
-  font-size: 16px; line-height: 1;
-  margin-top: 2px;
+  width: 22px; height: 14px; object-fit: cover;
+  margin-top: 3px;
+  border: 0.5px solid rgba(0,0,0,0.3);
+  border-radius: 1px;
 }
-.fut-card-large .fut-flag { font-size: 22px; margin-top: 3px; }
+.fut-card-large .fut-flag { width: 30px; height: 20px; margin-top: 5px; }
 .fut-club-logo {
-  width: 17px; height: 17px; object-fit: contain;
-  margin-top: 1px;
+  width: 22px; height: 22px; object-fit: contain;
+  margin-top: 3px;
 }
-.fut-card-large .fut-club-logo { width: 24px; height: 24px; margin-top: 2px; }
+.fut-card-large .fut-club-logo { width: 30px; height: 30px; margin-top: 5px; }
 .fut-club-text {
   font-size: 7px; font-weight: 900; text-align: center;
   background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 2px;
