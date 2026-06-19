@@ -144,6 +144,9 @@ async function syncFromCloud() {
       historique.sort((a, b) => {
         const da = parseDateFR(a.nom || a.date);
         const db = parseDateFR(b.nom || b.date);
+        if (da === 0 && db === 0) return 0;
+        if (da === 0) return 1;
+        if (db === 0) return -1;
         return db - da;
       });
       localStorage.setItem('bamfc_historique', JSON.stringify(historique));
@@ -1581,10 +1584,11 @@ function openPlayerProfile(playerId) {
     <div><span class="ps-num">${stats.winPct}%</span><span class="ps-label">win</span></div>
   </div>`;
 
-  // Boutons admin pour gerer alias
+  // Boutons admin pour gerer alias / fusionner
   if (isAdmin) {
     html += `<div style="margin:1rem 0;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-ghost" onclick="manageAliases('${j.id}')">⚙ Gerer alias</button>
+      <button class="btn-primary" onclick="mergePlayer('${j.id}')">🔀 Fusionner des joueurs ici</button>
     </div>`;
   }
 
@@ -1619,4 +1623,112 @@ async function manageAliases(playerId) {
   toast('Alias mis a jour');
   closeModal('modalProfile');
   openPlayerProfile(playerId);
+}
+
+async function mergePlayer(targetId) {
+  const target = joueurs.find(j => j.id === targetId);
+  if (!target) return;
+
+  // Liste des autres joueurs
+  const others = joueurs.filter(j => j.id !== targetId);
+  if (!others.length) { toast('Aucun autre joueur a fusionner'); return; }
+
+  // Construire HTML liste de selection
+  let html = '<p style="color:var(--text-muted);font-size:13px;margin-bottom:10px">Coche les joueurs qui sont en fait <b>' + target.nom + '</b>. Leurs buts, victoires et matchs seront fusionnes.</p>';
+  html += '<div style="max-height:50vh;overflow-y:auto">';
+  others.forEach(j => {
+    const col = colorFor(j.nom);
+    const avatar = j.photo ? `<div class="js-avatar" style="background-image:url('${j.photo}')"></div>` : `<div class="js-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+    html += `<label class="js-row">
+      <input type="checkbox" data-mid="${j.id}" />
+      ${avatar}
+      <span>${j.nom}</span>
+    </label>`;
+  });
+  html += '</div><button class="btn-primary full" style="margin-top:1rem" onclick="confirmMerge(\''+targetId+'\')">Fusionner les joueurs selectionnes</button>';
+
+  document.getElementById('mergeBody').innerHTML = html;
+  openModal('modalMerge');
+}
+
+async function confirmMerge(targetId) {
+  const target = joueurs.find(j => j.id === targetId);
+  if (!target) return;
+  const checks = document.querySelectorAll('#modalMerge input[type=checkbox]:checked');
+  const sourceIds = Array.from(checks).map(c => c.dataset.mid);
+  if (!sourceIds.length) { toast('Coche au moins un joueur'); return; }
+  if (!confirm('Fusionner ' + sourceIds.length + ' joueur(s) dans ' + target.nom + ' ? Cette action est definitive.')) return;
+
+  // 1. Recuperer les noms et aliases des sources pour les ajouter aux aliases du target
+  const sources = joueurs.filter(j => sourceIds.includes(j.id));
+  const newAliases = [...(target.aliases || [])];
+  sources.forEach(s => {
+    if (!newAliases.includes(s.nom)) newAliases.push(s.nom);
+    (s.aliases || []).forEach(a => { if (!newAliases.includes(a)) newAliases.push(a); });
+  });
+  target.aliases = newAliases;
+
+  // 2. Dans chaque match de l'historique, remplacer les ids des sources par target.id
+  historique.forEach(m => {
+    // Buts: additionner
+    const newButs = { ...(m.buts || {}) };
+    sourceIds.forEach(sid => {
+      if (newButs[sid]) {
+        newButs[target.id] = (newButs[target.id] || 0) + newButs[sid];
+        delete newButs[sid];
+      }
+    });
+    m.buts = newButs;
+    // Teams.joueurs: remplacer
+    m.teams.forEach(t => {
+      t.joueurs = t.joueurs.map(jid => sourceIds.includes(jid) ? target.id : jid);
+      // Dedupliquer
+      t.joueurs = [...new Set(t.joueurs)];
+    });
+    // Videos: garder mais les playerName pointeront toujours vers le nom source -> findJoueurByName trouvera target via alias
+  });
+
+  // 3. Pronos: meme traitement
+  pronos.forEach(p => {
+    p.teams.forEach(t => {
+      const newPreds = { ...(t.predictions || {}) };
+      sourceIds.forEach(sid => {
+        if (newPreds[sid]) {
+          newPreds[target.id] = (newPreds[target.id] || 0) + newPreds[sid];
+          delete newPreds[sid];
+        }
+      });
+      t.predictions = newPreds;
+      t.joueurs = t.joueurs.map(jid => sourceIds.includes(jid) ? target.id : jid);
+      t.joueurs = [...new Set(t.joueurs)];
+    });
+  });
+
+  // 4. Supprimer les joueurs sources
+  joueurs = joueurs.filter(j => !sourceIds.includes(j.id));
+
+  // 5. Sauvegarder
+  save('bamfc_joueurs', joueurs);
+  save('bamfc_historique', historique);
+
+  // Push tout vers le cloud
+  await pushJoueur(target);
+  for (const sid of sourceIds) {
+    if (sb) await sb.from('joueurs').delete().eq('id', sid);
+  }
+  for (const m of historique) {
+    await pushMatch(m);
+  }
+  for (const p of pronos) {
+    if (sb) await sb.from('pronostiques').update({ teams: p.teams }).eq('id', p.id);
+  }
+
+  closeModal('modalMerge');
+  closeModal('modalProfile');
+  renderJoueurs();
+  renderHistorique();
+  renderStats();
+  renderPronos();
+  updateHero();
+  toast(sourceIds.length + ' joueur(s) fusionne(s) dans ' + target.nom);
 }

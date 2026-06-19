@@ -238,6 +238,17 @@
   </div>
 </div>
 
+<!-- MODAL FUSION -->
+<div class="modal-overlay" id="modalMerge" onclick="closeModalIfBg(event,'modalMerge')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">Fusionner des joueurs</span>
+      <button class="modal-close" onclick="closeModal('modalMerge')">×</button>
+    </div>
+    <div class="modal-body" id="mergeBody"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
