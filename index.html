@@ -227,6 +227,17 @@
   </div>
 </div>
 
+<!-- MODAL PROFIL -->
+<div class="modal-overlay" id="modalProfile" onclick="closeModalIfBg(event,'modalProfile')">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <span class="modal-title">Profil</span>
+      <button class="modal-close" onclick="closeModal('modalProfile')">×</button>
+    </div>
+    <div class="modal-body" id="profileBody"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

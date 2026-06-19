@@ -1,3 +1,24 @@
+
+function findJoueurByName(nom) {
+  if (!nom) return null;
+  const lower = nom.toLowerCase().trim();
+  return joueurs.find(j => {
+    if (j.nom.toLowerCase().trim() === lower) return true;
+    if ((j.aliases || []).some(a => a.toLowerCase().trim() === lower)) return true;
+    return false;
+  });
+}
+
+function parseDateFR(s) {
+  if (!s) return 0;
+  // Cherche un pattern dd/mm/yy ou dd/mm/yyyy ou dd/mm
+  const m = s.match(/(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?/);
+  if (!m) return 0;
+  const day = parseInt(m[1]), month = parseInt(m[2]) - 1;
+  let year = m[3] ? parseInt(m[3]) : new Date().getFullYear();
+  if (year < 100) year += 2000;
+  return new Date(year, month, day).getTime();
+}
 // ─── IDENTITE JOUEUR ─────────────────────────────────────
 function getMyPlayerId() { return localStorage.getItem('bamfc_my_player_id'); }
 function setMyPlayerId(id) { localStorage.setItem('bamfc_my_player_id', id); applyIdentityUI(); }
@@ -114,11 +135,17 @@ async function syncFromCloud() {
       sb.from('historique').select('*').order('created_at', { ascending: false })
     ]);
     if (j) {
-      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null }));
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [] }));
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
       historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null, nom: r.nom || null }));
+      // Tri par date du match (chrono inverse: plus recent en haut)
+      historique.sort((a, b) => {
+        const da = parseDateFR(a.nom || a.date);
+        const db = parseDateFR(b.nom || b.date);
+        return db - da;
+      });
       localStorage.setItem('bamfc_historique', JSON.stringify(historique));
     }
     renderJoueurs();
@@ -133,7 +160,7 @@ async function syncFromCloud() {
 
 async function pushJoueur(j) {
   if (!sb) return;
-  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null });
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null });
 }
 async function deleteJoueurCloud(id) {
   if (!sb) return;
@@ -640,7 +667,7 @@ function renderStats() {
   tbody.innerHTML = stats.map((j, i) => {
     const col = colorFor(j.nom);
     const rank = i + 1;
-    return `<tr>
+    return `<tr onclick="openPlayerProfile('${j.id}')" style="cursor:pointer">
       <td class="rank ${rank <= 3 ? 'top' : ''}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</td>
       <td>
         <span class="stat-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</span>
@@ -1052,7 +1079,7 @@ async function enregistrerImportComme() {
   // Ajouter joueurs absents
   teams.forEach(team => {
     team.joueurs.forEach(p => {
-      if (!joueurs.find(j => j.nom === p.name)) {
+      if (!findJoueurByName(p.name)) {
         joueurs.push({ id: uid(), nom: p.name, poste: '' });
       }
     });
@@ -1061,7 +1088,7 @@ async function enregistrerImportComme() {
 
   const butsMap = {};
   d.buts.forEach(b => {
-    const j = joueurs.find(j => j.nom === b.playerName);
+    const j = findJoueurByName(b.playerName);
     if (j) butsMap[j.id] = (butsMap[j.id] || 0) + 1;
   });
 
@@ -1090,7 +1117,7 @@ async function enregistrerImportComme() {
     date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
     teams: teams.map(t => ({
       nom: t.name,
-      joueurs: t.joueurs.map(p => joueurs.find(j => j.nom === p.name)?.id).filter(Boolean),
+      joueurs: t.joueurs.map(p => findJoueurByName(p.name)?.id).filter(Boolean),
       score: d.score[t.id] || score[String(t.id)] || 0,
     })),
     buts: butsMap,
@@ -1497,4 +1524,83 @@ function openPhotoModal(playerId) {
     reader.readAsDataURL(file);
   };
   input.click();
+}
+
+function openPlayerProfile(playerId) {
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return;
+  const stats = getPlayerStats(playerId);
+
+  // Recuperer tous les buts du joueur avec liens videos
+  const goalsWithVids = [];
+  historique.forEach(m => {
+    const nbButs = (m.buts || {})[playerId] || 0;
+    if (nbButs === 0) return;
+    // Cherche videos pour ce joueur dans ce match
+    const myVids = (m.videos || []).filter(v => findJoueurByName(v.playerName)?.id === playerId);
+    if (myVids.length) {
+      myVids.forEach(v => goalsWithVids.push({ matchNom: m.nom || m.date, time: v.time, url: v.url }));
+    } else {
+      // Pas de video pour ce match
+      for (let i = 0; i < nbButs; i++) {
+        goalsWithVids.push({ matchNom: m.nom || m.date, time: null, url: null });
+      }
+    }
+  });
+
+  const col = colorFor(j.nom);
+  const avatar = j.photo
+    ? `<div class="profile-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center"></div>`
+    : `<div class="profile-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+
+  let html = `<div class="profile-header">${avatar}<div><h3>${j.nom}</h3>`;
+  if (j.aliases && j.aliases.length) html += `<p class="profile-aliases">alias: ${j.aliases.join(', ')}</p>`;
+  if (j.poste) html += `<p class="profile-poste">${j.poste}</p>`;
+  html += `</div></div>`;
+
+  html += `<div class="profile-stats">
+    <div><span class="ps-num">${stats.matchs}</span><span class="ps-label">matchs</span></div>
+    <div><span class="ps-num">${stats.victoires}</span><span class="ps-label">victoires</span></div>
+    <div><span class="ps-num">${stats.buts}</span><span class="ps-label">buts</span></div>
+    <div><span class="ps-num">${stats.winPct}%</span><span class="ps-label">win</span></div>
+  </div>`;
+
+  // Boutons admin pour gerer alias
+  if (isAdmin) {
+    html += `<div style="margin:1rem 0;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="manageAliases('${j.id}')">⚙ Gerer alias</button>
+    </div>`;
+  }
+
+  // Liste des buts
+  html += '<h4 style="margin-top:1.5rem;color:var(--text-muted);font-size:13px;text-transform:uppercase;letter-spacing:0.05em">Buts</h4>';
+  if (!goalsWithVids.length) {
+    html += '<div class="empty-state">Aucun but enregistre</div>';
+  } else {
+    html += '<div class="profile-goals-list">';
+    goalsWithVids.forEach((g, i) => {
+      const clickable = g.url ? `onclick="playVideo('${g.url}', '${j.nom}', ${g.time || 0})" style="cursor:pointer"` : '';
+      const playIcon = g.url ? '<span style="color:var(--accent)">▶</span>' : '<span style="color:var(--text-dim);font-size:10px">pas de video</span>';
+      const timeStr = g.time != null ? Math.floor(g.time/60) + "'" : '';
+      html += `<div class="profile-goal" ${clickable}><span class="pg-match">${g.matchNom}</span><span class="pg-time">${timeStr}</span>${playIcon}</div>`;
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('profileBody').innerHTML = html;
+  openModal('modalProfile');
+}
+
+async function manageAliases(playerId) {
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return;
+  const current = (j.aliases || []).join(', ');
+  const result = prompt(`Alias pour ${j.nom} (separes par virgule, ex: Ibra, Ib Joker)`, current);
+  if (result === null) return;
+  j.aliases = result.split(',').map(s => s.trim()).filter(Boolean);
+  save('bamfc_joueurs', joueurs);
+  await pushJoueur(j);
+  toast('Alias mis a jour');
+  closeModal('modalProfile');
+  openPlayerProfile(playerId);
 }
