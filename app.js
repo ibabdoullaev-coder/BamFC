@@ -135,7 +135,7 @@ async function syncFromCloud() {
       sb.from('historique').select('*').order('created_at', { ascending: false })
     ]);
     if (j) {
-      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [], stats: r.stats || null, rating: r.rating || null }));
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [], stats: r.stats || null, rating: r.rating || null, country: r.country || 'FR', club: r.club || 'bamfc' }));
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
@@ -164,7 +164,7 @@ async function syncFromCloud() {
 
 async function pushJoueur(j) {
   if (!sb) return;
-  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null, stats: j.stats || null, rating: j.rating || null });
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null, stats: j.stats || null, rating: j.rating || null, country: j.country || null, club: j.club || null });
 }
 async function deleteJoueurCloud(id) {
   if (!sb) return;
@@ -195,6 +195,89 @@ const COLORS = [
   { bg: '#2a3a1a', text: '#AAFF4A' },
 ];
 
+
+
+const CLUBS = [
+  // France
+  { id: '85', n: 'Paris Saint-Germain' }, { id: '81', n: 'Marseille' }, { id: '79', n: 'Lyon' },
+  { id: '91', n: 'Monaco' }, { id: '84', n: 'Nice' }, { id: '80', n: 'Lille' },
+  { id: '94', n: 'Rennes' }, { id: '116', n: 'Lens' }, { id: '93', n: 'Reims' },
+  { id: '83', n: 'Nantes' }, { id: '95', n: 'Strasbourg' }, { id: '78', n: 'Bordeaux' },
+  // Angleterre
+  { id: '40', n: 'Liverpool' }, { id: '50', n: 'Manchester City' }, { id: '33', n: 'Manchester United' },
+  { id: '49', n: 'Chelsea' }, { id: '42', n: 'Arsenal' }, { id: '47', n: 'Tottenham' },
+  { id: '34', n: 'Newcastle' }, { id: '66', n: 'Aston Villa' }, { id: '51', n: 'Brighton' },
+  { id: '45', n: 'Everton' }, { id: '36', n: 'Fulham' }, { id: '52', n: 'Crystal Palace' },
+  { id: '46', n: 'Leicester' }, { id: '39', n: 'Wolves' }, { id: '63', n: 'Leeds' },
+  // Espagne
+  { id: '541', n: 'Real Madrid' }, { id: '529', n: 'Barcelona' }, { id: '530', n: 'Atletico Madrid' },
+  { id: '548', n: 'Real Sociedad' }, { id: '531', n: 'Athletic Bilbao' }, { id: '533', n: 'Villarreal' },
+  { id: '532', n: 'Valencia' }, { id: '536', n: 'Sevilla' }, { id: '543', n: 'Real Betis' },
+  { id: '538', n: 'Celta Vigo' }, { id: '540', n: 'Espanyol' }, { id: '546', n: 'Getafe' },
+  // Italie
+  { id: '496', n: 'Juventus' }, { id: '505', n: 'Inter Milan' }, { id: '489', n: 'AC Milan' },
+  { id: '492', n: 'Napoli' }, { id: '497', n: 'Roma' }, { id: '487', n: 'Lazio' },
+  { id: '499', n: 'Atalanta' }, { id: '502', n: 'Fiorentina' }, { id: '503', n: 'Torino' },
+  { id: '495', n: 'Genoa' }, { id: '500', n: 'Bologna' },
+  // Allemagne
+  { id: '157', n: 'Bayern Munich' }, { id: '165', n: 'Borussia Dortmund' }, { id: '173', n: 'RB Leipzig' },
+  { id: '168', n: 'Bayer Leverkusen' }, { id: '169', n: 'Eintracht Frankfurt' }, { id: '167', n: 'Hoffenheim' },
+  { id: '172', n: 'VfB Stuttgart' }, { id: '163', n: 'Borussia Monchengladbach' }, { id: '160', n: 'Freiburg' },
+  { id: '170', n: 'FC Augsburg' }, { id: '161', n: 'VfL Wolfsburg' }, { id: '162', n: 'Werder Bremen' },
+  // Portugal
+  { id: '228', n: 'Sporting CP' }, { id: '212', n: 'FC Porto' }, { id: '211', n: 'Benfica' },
+  { id: '217', n: 'Braga' },
+  // Pays-Bas
+  { id: '194', n: 'Ajax' }, { id: '197', n: 'PSV' }, { id: '209', n: 'Feyenoord' },
+  // Belgique
+  { id: '569', n: 'Club Brugge' }, { id: '554', n: 'Anderlecht' }, { id: '741', n: 'Genk' },
+  // Turquie
+  { id: '645', n: 'Galatasaray' }, { id: '610', n: 'Fenerbahce' }, { id: '611', n: 'Besiktas' },
+  // Bresil/Argentine
+  { id: '127', n: 'Flamengo' }, { id: '130', n: 'Sao Paulo' }, { id: '124', n: 'Boca Juniors' },
+  { id: '435', n: 'River Plate' }, { id: '131', n: 'Corinthians' }, { id: '133', n: 'Palmeiras' },
+  // USA / MLS
+  { id: '1610', n: 'LA Galaxy' }, { id: '1599', n: 'Inter Miami' }, { id: '1614', n: 'LAFC' },
+  // Arabie / Saudi
+  { id: '2939', n: 'Al-Nassr' }, { id: '2932', n: 'Al-Hilal' }, { id: '2935', n: 'Al-Ittihad' },
+  // Libres/perso
+  { id: 'free', n: 'Free Agent' }, { id: 'icon', n: 'Icon' }, { id: 'hero', n: 'Hero' },
+  // Special Bam FC
+  { id: 'bamfc', n: 'Bam FC' },
+];
+
+const COUNTRIES = [
+  { code: 'FR', n: 'France', flag: '🇫🇷' }, { code: 'DZ', n: 'Algerie', flag: '🇩🇿' },
+  { code: 'MA', n: 'Maroc', flag: '🇲🇦' }, { code: 'TN', n: 'Tunisie', flag: '🇹🇳' },
+  { code: 'SN', n: 'Senegal', flag: '🇸🇳' }, { code: 'CI', n: 'Cote d Ivoire', flag: '🇨🇮' },
+  { code: 'CM', n: 'Cameroun', flag: '🇨🇲' }, { code: 'ML', n: 'Mali', flag: '🇲🇱' },
+  { code: 'CD', n: 'RD Congo', flag: '🇨🇩' }, { code: 'NG', n: 'Nigeria', flag: '🇳🇬' },
+  { code: 'GH', n: 'Ghana', flag: '🇬🇭' }, { code: 'EG', n: 'Egypte', flag: '🇪🇬' },
+  { code: 'PT', n: 'Portugal', flag: '🇵🇹' }, { code: 'ES', n: 'Espagne', flag: '🇪🇸' },
+  { code: 'IT', n: 'Italie', flag: '🇮🇹' }, { code: 'DE', n: 'Allemagne', flag: '🇩🇪' },
+  { code: 'GB', n: 'Angleterre', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' }, { code: 'NL', n: 'Pays-Bas', flag: '🇳🇱' },
+  { code: 'BE', n: 'Belgique', flag: '🇧🇪' }, { code: 'TR', n: 'Turquie', flag: '🇹🇷' },
+  { code: 'BR', n: 'Bresil', flag: '🇧🇷' }, { code: 'AR', n: 'Argentine', flag: '🇦🇷' },
+  { code: 'US', n: 'USA', flag: '🇺🇸' }, { code: 'CA', n: 'Canada', flag: '🇨🇦' },
+  { code: 'MX', n: 'Mexique', flag: '🇲🇽' }, { code: 'JP', n: 'Japon', flag: '🇯🇵' },
+  { code: 'KR', n: 'Coree', flag: '🇰🇷' }, { code: 'SA', n: 'Arabie Saoudite', flag: '🇸🇦' },
+  { code: 'QA', n: 'Qatar', flag: '🇶🇦' }, { code: 'AE', n: 'Emirats', flag: '🇦🇪' },
+];
+
+const POSITIONS = ['GB','BU','MO','MD','MG','AD','DC','DG','DD','ATT','MIL','DEF'];
+
+function getClubLogo(clubId) {
+  if (!clubId || clubId === 'free' || clubId === 'bamfc') return null;
+  return `https://media.api-sports.io/football/teams/${clubId}.png`;
+}
+
+function getClub(clubId) {
+  return CLUBS.find(c => c.id === clubId);
+}
+
+function getCountry(code) {
+  return COUNTRIES.find(c => c.code === code);
+}
 
 const FIFA_STATS_DEFAULT = [
   { key: 'PAC', label: 'PAC', value: 70 },
@@ -228,11 +311,18 @@ function getFutCardStyle(rating) {
 function makeFutCard(j, sizeClass) {
   const stats = getPlayerFifaStats(j);
   const rating = getPlayerRating(j);
-  const style = getFutCardStyle(rating);
+  const tier = getCardTier(rating);
   const col = colorFor(j.nom);
   const photo = j.photo
     ? `<div class="fut-photo" style="background-image:url('${j.photo}')"></div>`
-    : `<div class="fut-photo" style="background:${col.bg};color:${col.text};display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700">${initials(j.nom)}</div>`;
+    : `<div class="fut-photo fut-photo-initials" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+
+  const country = getCountry(j.country) || { flag: '🇫🇷' };
+  const club = getClub(j.club || 'bamfc');
+  const clubLogo = getClubLogo(j.club) || '';
+  const clubHtml = clubLogo
+    ? `<img class="fut-club-logo" src="${clubLogo}" onerror="this.style.display='none'" alt="" />`
+    : `<div class="fut-club-logo fut-club-text">BAM</div>`;
 
   const half = Math.ceil(stats.length / 2);
   const col1 = stats.slice(0, half);
@@ -242,15 +332,29 @@ function makeFutCard(j, sizeClass) {
     <div class="fut-stats-col">${col2.map(s => `<div><b>${s.value}</b> ${s.label}</div>`).join('')}</div>
   </div>`;
 
-  return `<div class="fut-card ${sizeClass || ''}" style="background:${style.bg};border-color:${style.border};color:${style.text}">
+  return `<div class="fut-card fut-tier-${tier} ${sizeClass || ''}">
+    <div class="fut-bg"></div>
     <div class="fut-top">
-      <div class="fut-rating">${rating}</div>
-      <div class="fut-pos">${j.poste || 'JR'}</div>
+      <div class="fut-rating-pos">
+        <div class="fut-rating">${rating}</div>
+        <div class="fut-pos">${j.poste || 'JR'}</div>
+        <div class="fut-flag">${country.flag}</div>
+        ${clubHtml}
+      </div>
+      ${photo}
     </div>
-    ${photo}
     <div class="fut-name">${j.nom}</div>
+    <div class="fut-divider"></div>
     ${statsHtml}
   </div>`;
+}
+
+function getCardTier(rating) {
+  if (rating >= 90) return 'icon';
+  if (rating >= 85) return 'gold-rare';
+  if (rating >= 75) return 'gold';
+  if (rating >= 65) return 'silver';
+  return 'bronze';
 }
 
 function colorFor(name) {
