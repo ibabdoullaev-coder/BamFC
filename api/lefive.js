@@ -22,9 +22,10 @@ module.exports = async (req, res) => {
       'User-Agent': 'Mozilla/5.0'
     };
 
-    const [eventsRes, playersRes] = await Promise.all([
+    const [eventsRes, playersRes, matchRes] = await Promise.all([
       fetch(`https://api-front.lefive.fr/splf/v1/matches/${matchId}/matchevents`, { headers }),
-      fetch(`https://api-front.lefive.fr/splf/v1/matches/${matchId}/matchplayers`, { headers })
+      fetch(`https://api-front.lefive.fr/splf/v1/matches/${matchId}/matchplayers`, { headers }),
+      fetch(`https://api-front.lefive.fr/splf/v1/matches/${matchId}`, { headers })
     ]);
 
     if (!eventsRes.ok || !playersRes.ok) {
@@ -33,6 +34,7 @@ module.exports = async (req, res) => {
 
     const events = await eventsRes.json();
     const players = await playersRes.json();
+    const matchInfo = matchRes.ok ? await matchRes.json() : null;
 
     // Buts depuis events
     const buts = events.filter(e => e.easyLiveEvent?.event_type === 'Point').map(e => ({
@@ -77,15 +79,24 @@ module.exports = async (req, res) => {
     // Nettoyer le _ids
     Object.values(teams).forEach(t => delete t._ids);
 
-    // Calcul score depuis buts
+    // Score: utiliser le score officiel du match si disponible (peut differer du nombre de buts)
     const score = {};
     Object.keys(teams).forEach(tid => score[tid] = 0);
     buts.forEach(b => { if (b.teamId !== undefined) score[b.teamId] = (score[b.teamId] || 0) + 1; });
+
+    // Override avec score officiel si dispo
+    if (matchInfo) {
+      const firstTeamId = matchInfo.firstTeam?.id;
+      const secondTeamId = matchInfo.secondTeam?.id;
+      if (firstTeamId && matchInfo.firstTeamScore !== undefined) score[firstTeamId] = matchInfo.firstTeamScore;
+      if (secondTeamId && matchInfo.secondTeamScore !== undefined) score[secondTeamId] = matchInfo.secondTeamScore;
+    }
 
     return res.status(200).json({
       teams: Object.values(teams),
       buts,
       score,
+      matchDate: matchInfo?.startingDate || null,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

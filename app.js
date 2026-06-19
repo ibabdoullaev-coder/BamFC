@@ -465,9 +465,17 @@ function changeBut(id, delta) {
 
 // ─── ENREGISTRER MATCH ────────────────────────────────────
 function enregistrerMatch() {
+  // Date du match (depuis lefive) ou aujourd'hui
+  let matchDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  if (d.matchDate) {
+    const dt = new Date(d.matchDate);
+    if (!isNaN(dt)) matchDate = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }
+
   const match = {
     id: uid(),
-    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    date: matchDate,
+    nom: matchDate,
     teams: currentTeams.map((team, ti) => ({
       nom: TEAM_NAMES[ti],
       joueurs: team.map(j => j.id),
@@ -1112,9 +1120,17 @@ async function enregistrerImportComme() {
     }
   }));
 
+  // Date du match (depuis lefive) ou aujourd'hui
+  let matchDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  if (d.matchDate) {
+    const dt = new Date(d.matchDate);
+    if (!isNaN(dt)) matchDate = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }
+
   const match = {
     id: uid(),
-    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    date: matchDate,
+    nom: matchDate,
     teams: teams.map(t => ({
       nom: t.name,
       joueurs: t.joueurs.map(p => findJoueurByName(p.name)?.id).filter(Boolean),
