@@ -21,7 +21,7 @@ function parseDateFR(s) {
 }
 // ─── IDENTITE JOUEUR ─────────────────────────────────────
 function getMyPlayerId() { return localStorage.getItem('bamfc_my_player_id'); }
-function setMyPlayerId(id) { localStorage.setItem('bamfc_my_player_id', id); applyIdentityUI(); }
+function setMyPlayerId(id) { localStorage.setItem('bamfc_my_player_id', id); applyIdentityUI(); hideNudgeOnLogin && hideNudgeOnLogin(); }
 function clearMyPlayerId() { localStorage.removeItem('bamfc_my_player_id'); applyIdentityUI(); }
 
 function applyIdentityUI() {
@@ -1747,43 +1747,43 @@ async function confirmMerge(targetId) {
 
 // ─── POPUP CONNEXION ─────────────────────────────────────
 function maybeShowLoginNudge() {
-  // Pas si admin / coach / deja identifie
+  // Pas si admin ou deja identifie
   if (isAdmin || getMyPlayerId()) return;
-  // Pas si deja vu dans les 7 derniers jours
-  const last = parseInt(localStorage.getItem('bamfc_nudge_last') || '0');
-  if (Date.now() - last < 7 * 24 * 3600 * 1000) return;
+  // Pas si deja affiche
+  if (document.querySelector('.login-nudge')) return;
 
   setTimeout(() => {
+    if (getMyPlayerId()) return;
     const n = document.createElement('div');
     n.className = 'login-nudge';
     n.innerHTML = `
       <button class="ln-close" onclick="dismissNudge()">×</button>
       <div class="ln-art" aria-hidden="true">
-        <svg viewBox="0 0 120 130" width="80" height="86" xmlns="http://www.w3.org/2000/svg">
-          <!-- sweat capuche -->
-          <path d="M20 70 Q20 35 60 25 Q100 35 100 70 L100 125 L20 125 Z" fill="#4a3fb8" stroke="#1a1a1a" stroke-width="3"/>
-          <!-- visage ovale -->
-          <ellipse cx="60" cy="60" rx="28" ry="34" fill="#f4d5c1" stroke="#1a1a1a" stroke-width="3"/>
-          <!-- cheveux noirs sortant de la capuche -->
-          <path d="M40 42 Q44 36 50 38 Q55 35 60 36 Q66 34 72 37 Q78 36 82 42 Q80 50 75 48 Q70 46 65 47 Q60 45 55 47 Q50 46 45 48 Q40 50 40 42 Z" fill="#1a1a1a"/>
-          <!-- meche sur front -->
-          <path d="M52 44 Q55 50 50 54" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
-          <!-- capuche bord -->
-          <path d="M32 60 Q32 30 60 26 Q88 30 88 60" fill="none" stroke="#1a1a1a" stroke-width="3"/>
-          <!-- yeux tristes -->
-          <ellipse cx="49" cy="58" rx="2.5" ry="3.5" fill="#1a1a1a"/>
-          <ellipse cx="71" cy="58" rx="2.5" ry="3.5" fill="#1a1a1a"/>
-          <!-- sourcils tombants -->
-          <path d="M43 50 Q49 52 55 51" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M65 51 Q71 52 77 50" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
-          <!-- bouche en U inverse -->
-          <path d="M50 78 Q60 70 70 78" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
+        <svg viewBox="0 0 140 150" width="92" height="100" xmlns="http://www.w3.org/2000/svg">
+          <!-- capuche derriere (bleu/violet) -->
+          <path d="M15 88 Q10 50 30 35 Q50 22 70 22 Q90 22 110 35 Q130 50 125 88 L125 148 L15 148 Z" fill="#3d3492" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- bord capuche autour visage -->
+          <path d="M35 55 Q30 32 70 28 Q110 32 105 55 Q108 70 100 78" fill="#3d3492" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- visage en forme de gourde/ovale dessine main -->
+          <path d="M45 50 Q40 65 42 90 Q44 115 70 118 Q96 115 98 90 Q100 65 95 50 Q88 38 70 38 Q52 38 45 50 Z" fill="#f7e1cf" stroke="#1a1a1a" stroke-width="2.5"/>
+          <!-- ombre dans capuche -->
+          <path d="M42 50 Q40 55 42 60" fill="none" stroke="#2a1f6f" stroke-width="2"/>
+          <path d="M98 50 Q100 55 98 60" fill="none" stroke="#2a1f6f" stroke-width="2"/>
+          <!-- yeux ronds vides style cartoon -->
+          <circle cx="58" cy="70" r="3.5" fill="#1a1a1a"/>
+          <circle cx="82" cy="70" r="3.5" fill="#1a1a1a"/>
+          <!-- nez petit trait -->
+          <path d="M70 78 Q68 85 70 88" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+          <!-- bouche triste petite -->
+          <path d="M60 100 Q70 94 80 100" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- bord visage cote -->
+          <path d="M44 90 Q42 100 45 108" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
         </svg>
       </div>
       <div class="ln-text">
-        <h4>Eh, t'as oublié de te connecter !</h4>
-        <p>Connecte-toi pour mettre ta photo et pronostiquer tes buts.</p>
-        <button class="btn-primary" onclick="dismissNudge(true);openIdentityModal()">Qui es-tu ?</button>
+        <div class="ln-name">Lil Baby</div>
+        <h4>Frérot, connecte-toi avant que je m'énerve</h4>
+        <button class="btn-primary" onclick="openIdentityModal()">Qui es-tu ?</button>
       </div>
     `;
     document.body.appendChild(n);
@@ -1791,11 +1791,16 @@ function maybeShowLoginNudge() {
   }, 3000);
 }
 
-function dismissNudge(remember) {
+function dismissNudge() {
+  // Reduit le popup au lieu de le fermer
+  const n = document.querySelector('.login-nudge');
+  if (n) n.classList.toggle('minimized');
+}
+
+// Cache automatiquement le popup quand le joueur se connecte
+function hideNudgeOnLogin() {
   const n = document.querySelector('.login-nudge');
   if (n) { n.classList.remove('show'); setTimeout(() => n.remove(), 300); }
-  if (remember) localStorage.setItem('bamfc_nudge_last', Date.now().toString());
-  else localStorage.setItem('bamfc_nudge_last', (Date.now() - 6 * 24 * 3600 * 1000).toString()); // re-affiche dans 1 jour
 }
 
 // Appel apres sync
