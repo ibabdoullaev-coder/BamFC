@@ -247,21 +247,93 @@ const CLUBS = [
 ];
 
 const COUNTRIES = [
-  { code: 'FR', n: 'France', flag: '🇫🇷' }, { code: 'DZ', n: 'Algerie', flag: '🇩🇿' },
-  { code: 'MA', n: 'Maroc', flag: '🇲🇦' }, { code: 'TN', n: 'Tunisie', flag: '🇹🇳' },
+  { code: 'FR', n: 'France', flag: '🇫🇷' },
+  // Afrique du Nord & Moyen-Orient
+  { code: 'DZ', n: 'Algerie', flag: '🇩🇿' }, { code: 'MA', n: 'Maroc', flag: '🇲🇦' },
+  { code: 'TN', n: 'Tunisie', flag: '🇹🇳' }, { code: 'LY', n: 'Libye', flag: '🇱🇾' },
+  { code: 'EG', n: 'Egypte', flag: '🇪🇬' }, { code: 'SD', n: 'Soudan', flag: '🇸🇩' },
+  { code: 'SA', n: 'Arabie Saoudite', flag: '🇸🇦' }, { code: 'QA', n: 'Qatar', flag: '🇶🇦' },
+  { code: 'AE', n: 'Emirats', flag: '🇦🇪' }, { code: 'IL', n: 'Israel', flag: '🇮🇱' },
+  { code: 'LB', n: 'Liban', flag: '🇱🇧' }, { code: 'SY', n: 'Syrie', flag: '🇸🇾' },
+  { code: 'IR', n: 'Iran', flag: '🇮🇷' }, { code: 'IQ', n: 'Irak', flag: '🇮🇶' },
+  { code: 'JO', n: 'Jordanie', flag: '🇯🇴' }, { code: 'KW', n: 'Koweit', flag: '🇰🇼' },
+  { code: 'PS', n: 'Palestine', flag: '🇵🇸' },
+  // Afrique de l'Ouest
   { code: 'SN', n: 'Senegal', flag: '🇸🇳' }, { code: 'CI', n: 'Cote d Ivoire', flag: '🇨🇮' },
-  { code: 'CM', n: 'Cameroun', flag: '🇨🇲' }, { code: 'ML', n: 'Mali', flag: '🇲🇱' },
-  { code: 'CD', n: 'RD Congo', flag: '🇨🇩' }, { code: 'NG', n: 'Nigeria', flag: '🇳🇬' },
-  { code: 'GH', n: 'Ghana', flag: '🇬🇭' }, { code: 'EG', n: 'Egypte', flag: '🇪🇬' },
+  { code: 'ML', n: 'Mali', flag: '🇲🇱' }, { code: 'BF', n: 'Burkina Faso', flag: '🇧🇫' },
+  { code: 'NE', n: 'Niger', flag: '🇳🇪' }, { code: 'GN', n: 'Guinee', flag: '🇬🇳' },
+  { code: 'GH', n: 'Ghana', flag: '🇬🇭' }, { code: 'NG', n: 'Nigeria', flag: '🇳🇬' },
+  { code: 'TG', n: 'Togo', flag: '🇹🇬' }, { code: 'BJ', n: 'Benin', flag: '🇧🇯' },
+  { code: 'LR', n: 'Liberia', flag: '🇱🇷' }, { code: 'SL', n: 'Sierra Leone', flag: '🇸🇱' },
+  { code: 'GM', n: 'Gambie', flag: '🇬🇲' }, { code: 'GW', n: 'Guinee-Bissau', flag: '🇬🇼' },
+  { code: 'MR', n: 'Mauritanie', flag: '🇲🇷' }, { code: 'CV', n: 'Cap-Vert', flag: '🇨🇻' },
+  // Afrique Centrale
+  { code: 'CM', n: 'Cameroun', flag: '🇨🇲' }, { code: 'CF', n: 'RCA', flag: '🇨🇫' },
+  { code: 'CG', n: 'Congo', flag: '🇨🇬' }, { code: 'CD', n: 'RD Congo', flag: '🇨🇩' },
+  { code: 'GA', n: 'Gabon', flag: '🇬🇦' }, { code: 'GQ', n: 'Guinee Equatoriale', flag: '🇬🇶' },
+  { code: 'TD', n: 'Tchad', flag: '🇹🇩' }, { code: 'AO', n: 'Angola', flag: '🇦🇴' },
+  { code: 'ST', n: 'Sao Tome', flag: '🇸🇹' },
+  // Afrique de l'Est
+  { code: 'ET', n: 'Ethiopie', flag: '🇪🇹' }, { code: 'KE', n: 'Kenya', flag: '🇰🇪' },
+  { code: 'TZ', n: 'Tanzanie', flag: '🇹🇿' }, { code: 'UG', n: 'Ouganda', flag: '🇺🇬' },
+  { code: 'RW', n: 'Rwanda', flag: '🇷🇼' }, { code: 'BI', n: 'Burundi', flag: '🇧🇮' },
+  { code: 'SO', n: 'Somalie', flag: '🇸🇴' }, { code: 'DJ', n: 'Djibouti', flag: '🇩🇯' },
+  { code: 'ER', n: 'Erythree', flag: '🇪🇷' }, { code: 'SS', n: 'Soudan du Sud', flag: '🇸🇸' },
+  { code: 'KM', n: 'Comores', flag: '🇰🇲' }, { code: 'MG', n: 'Madagascar', flag: '🇲🇬' },
+  { code: 'MU', n: 'Maurice', flag: '🇲🇺' }, { code: 'SC', n: 'Seychelles', flag: '🇸🇨' },
+  // Afrique Australe
+  { code: 'ZA', n: 'Afrique du Sud', flag: '🇿🇦' }, { code: 'NA', n: 'Namibie', flag: '🇳🇦' },
+  { code: 'BW', n: 'Botswana', flag: '🇧🇼' }, { code: 'ZW', n: 'Zimbabwe', flag: '🇿🇼' },
+  { code: 'ZM', n: 'Zambie', flag: '🇿🇲' }, { code: 'MZ', n: 'Mozambique', flag: '🇲🇿' },
+  { code: 'MW', n: 'Malawi', flag: '🇲🇼' }, { code: 'LS', n: 'Lesotho', flag: '🇱🇸' },
+  { code: 'SZ', n: 'Eswatini', flag: '🇸🇿' },
+  // Europe de l'Ouest
   { code: 'PT', n: 'Portugal', flag: '🇵🇹' }, { code: 'ES', n: 'Espagne', flag: '🇪🇸' },
   { code: 'IT', n: 'Italie', flag: '🇮🇹' }, { code: 'DE', n: 'Allemagne', flag: '🇩🇪' },
   { code: 'GB', n: 'Angleterre', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' }, { code: 'NL', n: 'Pays-Bas', flag: '🇳🇱' },
-  { code: 'BE', n: 'Belgique', flag: '🇧🇪' }, { code: 'TR', n: 'Turquie', flag: '🇹🇷' },
+  { code: 'BE', n: 'Belgique', flag: '🇧🇪' }, { code: 'CH', n: 'Suisse', flag: '🇨🇭' },
+  { code: 'AT', n: 'Autriche', flag: '🇦🇹' }, { code: 'IE', n: 'Irlande', flag: '🇮🇪' },
+  { code: 'LU', n: 'Luxembourg', flag: '🇱🇺' },
+  // Europe du Nord
+  { code: 'SE', n: 'Suede', flag: '🇸🇪' }, { code: 'NO', n: 'Norvege', flag: '🇳🇴' },
+  { code: 'DK', n: 'Danemark', flag: '🇩🇰' }, { code: 'FI', n: 'Finlande', flag: '🇫🇮' },
+  { code: 'IS', n: 'Islande', flag: '🇮🇸' },
+  // Europe de l'Est
+  { code: 'PL', n: 'Pologne', flag: '🇵🇱' }, { code: 'CZ', n: 'Tchequie', flag: '🇨🇿' },
+  { code: 'SK', n: 'Slovaquie', flag: '🇸🇰' }, { code: 'HU', n: 'Hongrie', flag: '🇭🇺' },
+  { code: 'RO', n: 'Roumanie', flag: '🇷🇴' }, { code: 'BG', n: 'Bulgarie', flag: '🇧🇬' },
+  { code: 'RU', n: 'Russie', flag: '🇷🇺' }, { code: 'UA', n: 'Ukraine', flag: '🇺🇦' },
+  { code: 'BY', n: 'Bielorussie', flag: '🇧🇾' },
+  // Balkans
+  { code: 'HR', n: 'Croatie', flag: '🇭🇷' }, { code: 'RS', n: 'Serbie', flag: '🇷🇸' },
+  { code: 'BA', n: 'Bosnie', flag: '🇧🇦' }, { code: 'SI', n: 'Slovenie', flag: '🇸🇮' },
+  { code: 'AL', n: 'Albanie', flag: '🇦🇱' }, { code: 'MK', n: 'Macedoine', flag: '🇲🇰' },
+  { code: 'XK', n: 'Kosovo', flag: '🇽🇰' }, { code: 'ME', n: 'Montenegro', flag: '🇲🇪' },
+  { code: 'GR', n: 'Grece', flag: '🇬🇷' }, { code: 'TR', n: 'Turquie', flag: '🇹🇷' },
+  { code: 'CY', n: 'Chypre', flag: '🇨🇾' },
+  // Amériques
   { code: 'BR', n: 'Bresil', flag: '🇧🇷' }, { code: 'AR', n: 'Argentine', flag: '🇦🇷' },
+  { code: 'UY', n: 'Uruguay', flag: '🇺🇾' }, { code: 'CL', n: 'Chili', flag: '🇨🇱' },
+  { code: 'CO', n: 'Colombie', flag: '🇨🇴' }, { code: 'PE', n: 'Perou', flag: '🇵🇪' },
+  { code: 'EC', n: 'Equateur', flag: '🇪🇨' }, { code: 'BO', n: 'Bolivie', flag: '🇧🇴' },
+  { code: 'PY', n: 'Paraguay', flag: '🇵🇾' }, { code: 'VE', n: 'Venezuela', flag: '🇻🇪' },
   { code: 'US', n: 'USA', flag: '🇺🇸' }, { code: 'CA', n: 'Canada', flag: '🇨🇦' },
-  { code: 'MX', n: 'Mexique', flag: '🇲🇽' }, { code: 'JP', n: 'Japon', flag: '🇯🇵' },
-  { code: 'KR', n: 'Coree', flag: '🇰🇷' }, { code: 'SA', n: 'Arabie Saoudite', flag: '🇸🇦' },
-  { code: 'QA', n: 'Qatar', flag: '🇶🇦' }, { code: 'AE', n: 'Emirats', flag: '🇦🇪' },
+  { code: 'MX', n: 'Mexique', flag: '🇲🇽' }, { code: 'JM', n: 'Jamaique', flag: '🇯🇲' },
+  { code: 'HT', n: 'Haiti', flag: '🇭🇹' }, { code: 'DO', n: 'Dominicaine', flag: '🇩🇴' },
+  { code: 'CU', n: 'Cuba', flag: '🇨🇺' }, { code: 'CR', n: 'Costa Rica', flag: '🇨🇷' },
+  { code: 'PA', n: 'Panama', flag: '🇵🇦' }, { code: 'TT', n: 'Trinite', flag: '🇹🇹' },
+  // Asie
+  { code: 'JP', n: 'Japon', flag: '🇯🇵' }, { code: 'KR', n: 'Coree Sud', flag: '🇰🇷' },
+  { code: 'CN', n: 'Chine', flag: '🇨🇳' }, { code: 'IN', n: 'Inde', flag: '🇮🇳' },
+  { code: 'PK', n: 'Pakistan', flag: '🇵🇰' }, { code: 'BD', n: 'Bangladesh', flag: '🇧🇩' },
+  { code: 'LK', n: 'Sri Lanka', flag: '🇱🇰' }, { code: 'TH', n: 'Thailande', flag: '🇹🇭' },
+  { code: 'VN', n: 'Vietnam', flag: '🇻🇳' }, { code: 'PH', n: 'Philippines', flag: '🇵🇭' },
+  { code: 'ID', n: 'Indonesie', flag: '🇮🇩' }, { code: 'MY', n: 'Malaisie', flag: '🇲🇾' },
+  { code: 'SG', n: 'Singapour', flag: '🇸🇬' }, { code: 'UZ', n: 'Ouzbekistan', flag: '🇺🇿' },
+  { code: 'KZ', n: 'Kazakhstan', flag: '🇰🇿' }, { code: 'AF', n: 'Afghanistan', flag: '🇦🇫' },
+  // Oceanie
+  { code: 'AU', n: 'Australie', flag: '🇦🇺' }, { code: 'NZ', n: 'Nouvelle-Zelande', flag: '🇳🇿' },
+  { code: 'FJ', n: 'Fidji', flag: '🇫🇯' },
 ];
 
 const POSITIONS = ['GB','BU','MO','MD','MG','AD','DC','DG','DD','ATT','MIL','DEF'];
@@ -318,8 +390,7 @@ function makeFutCard(j, sizeClass) {
     : `<div class="fut-photo fut-photo-initials" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
 
   const country = getCountry(j.country) || { flag: '🇫🇷' };
-  const club = getClub(j.club || 'bamfc');
-  const clubLogo = getClubLogo(j.club) || '';
+  const clubLogo = getClubLogo(j.club);
   const clubHtml = clubLogo
     ? `<img class="fut-club-logo" src="${clubLogo}" onerror="this.style.display='none'" alt="" />`
     : `<div class="fut-club-logo fut-club-text">BAM</div>`;
@@ -328,20 +399,23 @@ function makeFutCard(j, sizeClass) {
   const col1 = stats.slice(0, half);
   const col2 = stats.slice(half);
   const statsHtml = `<div class="fut-stats">
-    <div class="fut-stats-col">${col1.map(s => `<div><b>${s.value}</b> ${s.label}</div>`).join('')}</div>
-    <div class="fut-stats-col">${col2.map(s => `<div><b>${s.value}</b> ${s.label}</div>`).join('')}</div>
+    <div class="fut-stats-col">${col1.map(s => `<div><b>${s.value}</b><span>${s.label}</span></div>`).join('')}</div>
+    <div class="fut-divider-v"></div>
+    <div class="fut-stats-col">${col2.map(s => `<div><b>${s.value}</b><span>${s.label}</span></div>`).join('')}</div>
   </div>`;
 
   return `<div class="fut-card fut-tier-${tier} ${sizeClass || ''}">
-    <div class="fut-bg"></div>
+    <div class="fut-shine"></div>
     <div class="fut-top">
-      <div class="fut-rating-pos">
+      <div class="fut-left-col">
         <div class="fut-rating">${rating}</div>
         <div class="fut-pos">${j.poste || 'JR'}</div>
         <div class="fut-flag">${country.flag}</div>
         ${clubHtml}
       </div>
-      ${photo}
+      <div class="fut-right-col">
+        ${photo}
+      </div>
     </div>
     <div class="fut-name">${j.nom}</div>
     <div class="fut-divider"></div>

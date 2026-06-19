@@ -724,79 +724,163 @@ td.empty-state { padding: 2rem; }
 
 
 
-/* CARTES FUT - style Neymar */
+
+
+/* CARTES FUT - vrai style Neymar */
 .players-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 14px !important; }
 .player-card-fut { background: transparent; border: none; padding: 0; cursor: pointer; position: relative; transition: transform 0.18s; }
 .player-card-fut:hover { transform: translateY(-4px) scale(1.03); }
-.player-card-fut .player-delete { position: absolute; top: 4px; right: 4px; z-index: 10; background: rgba(0,0,0,0.7); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--danger); }
+.player-card-fut .player-delete { position: absolute; top: 0px; right: 4px; z-index: 10; background: rgba(0,0,0,0.85); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: #ff5555; }
 
 .fut-card {
   position: relative;
-  width: 100%; max-width: 160px; aspect-ratio: 0.72;
-  border-radius: 14px;
-  padding: 12px 10px 10px;
+  width: 100%; max-width: 160px; aspect-ratio: 0.66;
+  padding: 14px 12px 10px;
   display: flex; flex-direction: column; align-items: center;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
   margin: 0 auto;
   font-family: 'Inter', 'Space Grotesk', sans-serif;
   overflow: hidden;
+  color: #2a1f00;
+  /* Forme de blason FUT */
+  clip-path: polygon(50% 0%, 100% 3%, 100% 85%, 85% 95%, 70% 100%, 30% 100%, 15% 95%, 0 85%, 0 3%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.fut-card-large { max-width: 240px; padding: 22px 18px 16px; }
+
+/* Tiers avec motifs diagonaux */
+.fut-tier-bronze {
+  background:
+    repeating-linear-gradient(120deg, transparent 0 22px, rgba(0,0,0,0.06) 22px 24px),
+    linear-gradient(155deg, #8a5832 0%, #c89464 15%, #6a3820 40%, #c89464 60%, #8a5832 85%, #5a2c14 100%);
+  color: #2a1408;
+}
+.fut-tier-silver {
+  background:
+    repeating-linear-gradient(120deg, transparent 0 22px, rgba(0,0,0,0.06) 22px 24px),
+    linear-gradient(155deg, #909090 0%, #e8e8e8 15%, #707070 40%, #e8e8e8 60%, #909090 85%, #606060 100%);
   color: #1a1a1a;
 }
-.fut-card-large { max-width: 230px; padding: 18px 16px 14px; border-radius: 18px; }
-.fut-bg { position: absolute; inset: 0; z-index: 0; opacity: 0.9; pointer-events: none; }
+.fut-tier-gold {
+  background:
+    repeating-linear-gradient(120deg, transparent 0 22px, rgba(0,0,0,0.05) 22px 24px),
+    linear-gradient(155deg, #b08c20 0%, #f4d35e 15%, #8a6515 40%, #f4d35e 60%, #b08c20 85%, #6a5010 100%);
+  color: #2a1e00;
+}
+.fut-tier-gold-rare {
+  background:
+    repeating-linear-gradient(120deg, transparent 0 22px, rgba(0,0,0,0.04) 22px 24px),
+    linear-gradient(155deg, #c49520 0%, #fff2a8 12%, #f4d35e 32%, #8a6515 50%, #f4d35e 68%, #fff2a8 88%, #c49520 100%);
+  color: #2a1e00;
+  filter: drop-shadow(0 6px 18px rgba(244,211,94,0.3));
+}
+.fut-tier-icon {
+  background:
+    repeating-linear-gradient(120deg, transparent 0 22px, rgba(0,0,0,0.03) 22px 24px),
+    linear-gradient(155deg, #d8b048 0%, #fff8d4 25%, #f4d35e 50%, #b8911f 65%, #fff8d4 85%, #d8b048 100%);
+  color: #2a1e00;
+  filter: drop-shadow(0 8px 24px rgba(255,215,80,0.45));
+}
 
-/* Tiers */
-.fut-tier-bronze { background: linear-gradient(160deg, #8c5a3c 0%, #c08855 25%, #6b3d20 50%, #c08855 75%, #8c5a3c 100%); color: #1a0e05; }
-.fut-tier-silver { background: linear-gradient(160deg, #8a8a8a 0%, #d0d0d0 25%, #6e6e6e 50%, #d0d0d0 75%, #8a8a8a 100%); color: #1a1a1a; }
-.fut-tier-gold { background: linear-gradient(160deg, #a87f1a 0%, #f4d35e 25%, #8a6515 50%, #f4d35e 75%, #a87f1a 100%); color: #2a1e00; }
-.fut-tier-gold-rare { background: linear-gradient(160deg, #a87f1a 0%, #fff2a8 20%, #f4d35e 40%, #8a6515 55%, #f4d35e 70%, #fff2a8 85%, #a87f1a 100%); color: #2a1e00; box-shadow: 0 6px 24px rgba(244,211,94,0.4); }
-.fut-tier-icon { background: linear-gradient(160deg, #d4b045 0%, #fff8d4 30%, #f4d35e 50%, #b8911f 65%, #fff8d4 80%, #d4b045 100%); color: #2a1e00; box-shadow: 0 8px 30px rgba(255,215,80,0.5); }
+/* Effet shine diagonal */
+.fut-shine {
+  position: absolute; top: 0; left: -50%; width: 50%; height: 100%;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.25) 50%, transparent 65%);
+  pointer-events: none;
+  transform: skewX(-12deg);
+}
 
-/* Top: rating + pos + drapeau + club a gauche, photo a droite */
-.fut-top { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; gap: 6px; z-index: 2; position: relative; }
-.fut-rating-pos { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 36px; }
-.fut-rating { font-size: 24px; font-weight: 900; line-height: 1; letter-spacing: -0.02em; }
-.fut-card-large .fut-rating { font-size: 38px; }
-.fut-pos { font-size: 9px; font-weight: 800; letter-spacing: 0.05em; line-height: 1; margin-bottom: 3px; }
-.fut-card-large .fut-pos { font-size: 12px; margin-bottom: 5px; }
-.fut-flag { font-size: 14px; line-height: 1; margin-bottom: 2px; }
-.fut-card-large .fut-flag { font-size: 18px; }
-.fut-club-logo { width: 16px; height: 16px; object-fit: contain; }
-.fut-card-large .fut-club-logo { width: 22px; height: 22px; }
-.fut-club-text { font-size: 7px; font-weight: 800; text-align: center; }
-.fut-card-large .fut-club-text { font-size: 9px; }
+.fut-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  width: 100%; gap: 4px; z-index: 2; position: relative;
+}
+
+.fut-left-col {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; min-width: 32px; padding-top: 4px;
+}
+.fut-rating {
+  font-size: 26px; font-weight: 900; line-height: 1;
+  letter-spacing: -0.02em;
+}
+.fut-card-large .fut-rating { font-size: 42px; }
+.fut-pos {
+  font-size: 9px; font-weight: 900; letter-spacing: 0.05em;
+  line-height: 1; margin-bottom: 2px;
+}
+.fut-card-large .fut-pos { font-size: 13px; margin-bottom: 4px; }
+.fut-flag {
+  font-size: 16px; line-height: 1;
+  margin-top: 2px;
+}
+.fut-card-large .fut-flag { font-size: 22px; margin-top: 3px; }
+.fut-club-logo {
+  width: 17px; height: 17px; object-fit: contain;
+  margin-top: 1px;
+}
+.fut-card-large .fut-club-logo { width: 24px; height: 24px; margin-top: 2px; }
+.fut-club-text {
+  font-size: 7px; font-weight: 900; text-align: center;
+  background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 2px;
+}
+.fut-card-large .fut-club-text { font-size: 9px; padding: 3px 5px; }
+
+.fut-right-col { flex: 1; display: flex; justify-content: center; }
 
 .fut-photo {
-  width: 76px; height: 76px; border-radius: 50%;
+  width: 82px; height: 82px; border-radius: 50%;
   background-size: cover; background-position: center top;
-  border: 2px solid rgba(0,0,0,0.15);
+  border: none;
   flex-shrink: 0;
+  filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
 }
-.fut-card-large .fut-photo { width: 110px; height: 110px; }
-.fut-photo-initials { display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk',sans-serif; font-size: 22px; font-weight: 800; }
-.fut-card-large .fut-photo-initials { font-size: 32px; }
+.fut-card-large .fut-photo { width: 122px; height: 122px; }
+.fut-photo-initials {
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk',sans-serif; font-size: 24px; font-weight: 900;
+  background-color: rgba(255,255,255,0.2);
+}
+.fut-card-large .fut-photo-initials { font-size: 36px; }
 
 .fut-name {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+  font-size: 11px; font-weight: 900; letter-spacing: 0.05em;
   text-transform: uppercase; text-align: center;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  width: 85%;
-  margin-top: 6px; padding-bottom: 4px;
+  max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  width: 90%;
+  margin-top: 8px; padding-bottom: 5px;
   z-index: 2; position: relative;
 }
-.fut-card-large .fut-name { font-size: 16px; margin-top: 10px; padding-bottom: 6px; }
-.fut-divider { width: 80%; height: 1px; background: rgba(0,0,0,0.35); margin: 0 auto 6px; }
-.fut-card-large .fut-divider { margin-bottom: 10px; }
+.fut-card-large .fut-name { font-size: 17px; margin-top: 14px; padding-bottom: 8px; }
+.fut-divider {
+  width: 80%; height: 1px;
+  background: rgba(0,0,0,0.4);
+  margin: 0 auto 7px;
+}
+.fut-card-large .fut-divider { margin-bottom: 12px; }
 
 .fut-stats {
-  display: flex; gap: 12px; width: 100%; justify-content: center;
-  font-size: 9px; font-weight: 600;
+  display: flex; gap: 8px; width: 100%; justify-content: center;
+  font-weight: 700;
   z-index: 2; position: relative;
 }
-.fut-card-large .fut-stats { font-size: 12px; gap: 20px; }
-.fut-stats-col { display: flex; flex-direction: column; gap: 2px; }
-.fut-card-large .fut-stats-col { gap: 4px; }
-.fut-stats b { font-weight: 900; margin-right: 3px; }
+.fut-stats-col { display: flex; flex-direction: column; gap: 3px; }
+.fut-card-large .fut-stats-col { gap: 5px; }
+.fut-stats-col > div {
+  display: flex; align-items: baseline; gap: 5px;
+  font-size: 10px;
+}
+.fut-card-large .fut-stats-col > div { font-size: 13px; gap: 7px; }
+.fut-stats b {
+  font-weight: 900; font-size: 11px;
+  min-width: 18px; text-align: right;
+}
+.fut-card-large .fut-stats b { font-size: 15px; min-width: 24px; }
+.fut-stats span {
+  font-weight: 800; letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.fut-divider-v {
+  width: 1px; background: rgba(0,0,0,0.35);
+}
 
 /* Edit FUT modal */
 .fut-meta-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
