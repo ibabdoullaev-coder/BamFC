@@ -1127,7 +1127,7 @@ function renderPronos() {
     const titreAffich = p.nom || p.date;
     return `<div class="match-card-wrap">
       <div class="match-card" onclick="togglePronoTerrain(${pi})">
-        ${isCoach ? `<button class="match-delete" data-pid="${p.id}">×</button>` : ''}
+        ${isAdmin ? `<button class="match-delete" data-pid="${p.id}">×</button>` : ''}
         <span class="match-date">${titreAffich}</span>
         <div class="match-teams" style="flex-direction:column;align-items:flex-start;gap:4px">${teamsHtml}</div>
         <span class="match-expand">⚽</span>
@@ -1217,6 +1217,7 @@ function renderPronoTerrain(el, p) {
 }
 
 async function deleteProno(id) {
+  if (!isAdmin && !isCoach) { toast('Pas autorise'); return; }
   if (!confirm('Supprimer ce pronostique ?')) return;
   if (sb) await sb.from('pronostiques').delete().eq('id', id);
   pronos = pronos.filter(p => p.id !== id);
@@ -1407,8 +1408,8 @@ async function renameMatch(id) {
 
 async function changePred(pronoId, teamIdx, joueurId, delta) {
   const myId = getMyPlayerId();
-  if (!isAdmin && !isCoach && myId !== joueurId) {
-    toast('Seul ce joueur peut pronostiquer ses buts');
+  if (!isAdmin && myId !== joueurId) {
+    toast('Tu ne peux pronostiquer que tes propres buts');
     return;
   }
   const p = pronos.find(pp => pp.id === pronoId);
@@ -1437,4 +1438,43 @@ async function deleteMatch(id) {
   renderStats();
   updateHero();
   toast('Match supprime');
+}
+
+function openPhotoModal(playerId) {
+  const j = joueurs.find(j => j.id === playerId);
+  if (!j) return;
+  const myId = getMyPlayerId();
+  if (!isAdmin && !isCoach && myId !== playerId) {
+    toast('Seul ' + j.nom + ' peut changer sa photo');
+    return;
+  }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 200;
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const ratio = Math.min(img.width, img.height);
+        const sx = (img.width - ratio) / 2;
+        const sy = (img.height - ratio) / 2;
+        ctx.drawImage(img, sx, sy, ratio, ratio, 0, 0, size, size);
+        j.photo = canvas.toDataURL('image/jpeg', 0.85);
+        save('bamfc_joueurs', joueurs);
+        pushJoueur(j);
+        renderJoueurs();
+        toast('Photo ajoutee');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
 }
