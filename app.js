@@ -57,7 +57,7 @@ async function syncFromCloud() {
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
-      historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null }));
+      historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null, nom: r.nom || null }));
       localStorage.setItem('bamfc_historique', JSON.stringify(historique));
     }
     renderJoueurs();
@@ -80,7 +80,7 @@ async function deleteJoueurCloud(id) {
 }
 async function pushMatch(m) {
   if (!sb) return;
-  await sb.from('historique').upsert({ id: m.id, date: m.date, teams: m.teams, buts: m.buts, videos: m.videos || [], source: m.source || null });
+  await sb.from('historique').upsert({ id: m.id, date: m.date, teams: m.teams, buts: m.buts, videos: m.videos || [], source: m.source || null, nom: m.nom || null });
 }
 async function deleteMatchCloud(id) {
   if (!sb) return;
@@ -413,8 +413,9 @@ function renderHistorique() {
     const hasVideos = (m.videos || []).length > 0;
     return `<div class="match-card-wrap">
       <div class="match-card" onclick="toggleMatchTerrain(${mi})">
-        ${isAdmin ? `<button class="match-delete" onclick="event.stopPropagation();deleteMatch('${m.id}')">×</button>` : ''}
-        <span class="match-date">${m.date}</span>
+        ${isAdmin ? `<button class="match-delete" data-mid="${m.id}">×</button>` : ''}
+        <span class="match-date">${m.nom || m.date}</span>
+        ${isAdmin ? `<button class="match-rename" data-mid="${m.id}" title="Renommer">✎</button>` : ''}
         <div class="match-teams">
           ${m.teams.map((t, i) => {
             const isWin = !isNul && t.score === maxScore;
@@ -428,6 +429,13 @@ function renderHistorique() {
       <div class="match-terrain" id="matchTerrain${mi}" style="display:none"></div>
     </div>`;
   }).join('');
+  // Bind delete/rename buttons
+  el.querySelectorAll('.match-delete').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); deleteMatch(btn.dataset.mid); };
+  });
+  el.querySelectorAll('.match-rename').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); renameMatch(btn.dataset.mid); };
+  });
 }
 
 function toggleMatchTerrain(mi) {
@@ -1036,7 +1044,7 @@ async function syncPronos() {
   try {
     const { data } = await sb.from('pronostiques').select('*').order('created_at', { ascending: false });
     if (data) {
-      pronos = data.map(r => ({ id: r.id, date: r.date, teams: r.teams, format: r.format }));
+      pronos = data.map(r => ({ id: r.id, nom: r.nom || null, date: r.date, teams: r.teams, format: r.format }));
       renderPronos();
     }
   } catch (e) { console.warn(e); }
@@ -1054,15 +1062,21 @@ function renderPronos() {
       const noms = t.joueurs.map(jid => joueurs.find(j => j.id === jid)?.nom || '?').join(', ');
       return `<div class="prono-team" style="color:${TEAM_ACCENT[ti]}">${t.nom}: ${noms}</div>`;
     }).join('');
+    const titreAffich = p.nom || p.date;
     return `<div class="match-card-wrap">
       <div class="match-card" onclick="togglePronoTerrain(${pi})">
-        <span class="match-date">${p.date}</span>
+        ${isCoach ? `<button class="match-delete" data-pid="${p.id}">×</button>` : ''}
+        <span class="match-date">${titreAffich}</span>
         <div class="match-teams" style="flex-direction:column;align-items:flex-start;gap:4px">${teamsHtml}</div>
         <span class="match-expand">⚽</span>
       </div>
       <div class="match-terrain" id="pronoTerrain${pi}" style="display:none"></div>
     </div>`;
   }).join('');
+  // Bind delete
+  el.querySelectorAll('.match-delete').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); deleteProno(btn.dataset.pid); };
+  });
 }
 
 function togglePronoTerrain(pi) {
@@ -1080,8 +1094,21 @@ function togglePronoTerrain(pi) {
 }
 
 function renderPronoTerrain(el, p) {
-  el.innerHTML = '<div class="hist-pitch-wrap"><canvas class="hist-pitch-canvas"></canvas><div class="hist-pitch-players"></div></div>' +
-    (isCoach ? '<div style="text-align:center;margin-top:1rem"><button class="btn-ghost danger" onclick="deleteProno(\''+p.id+'\')">Supprimer ce pronostique</button></div>' : '');
+  // Construction predictions buts
+  let predHtml = '<div class="prono-predictions"><h4>Pronos buts</h4>';
+  p.teams.forEach((t, ti) => {
+    predHtml += `<div class="pred-team" style="border-left:3px solid ${TEAM_ACCENT[ti]}"><div class="pred-team-name" style="color:${TEAM_ACCENT[ti]}">${t.nom}</div>`;
+    t.joueurs.forEach(jid => {
+      const j = joueurs.find(jj => jj.id === jid);
+      if (!j) return;
+      const pred = (t.predictions || {})[jid] || 0;
+      predHtml += `<div class="pred-row"><span>${j.nom}</span><div class="pred-controls"><button onclick="changePred('${p.id}', ${ti}, '${jid}', -1)">−</button><span class="pred-val">${pred}</span><button onclick="changePred('${p.id}', ${ti}, '${jid}', 1)">+</button></div></div>`;
+    });
+    predHtml += '</div>';
+  });
+  predHtml += '</div>';
+
+  el.innerHTML = '<div class="hist-pitch-wrap"><canvas class="hist-pitch-canvas"></canvas><div class="hist-pitch-players"></div></div>' + predHtml;
   const canvas = el.querySelector('.hist-pitch-canvas');
   const W = el.querySelector('.hist-pitch-wrap').clientWidth || 700;
   const H = W * 0.65;
@@ -1279,16 +1306,19 @@ async function savePronoFromTeams() {
   const team0Players = slots.team0.filter(id => id);
   const team1Players = slots.team1.filter(id => id);
   if (!team0Players.length || !team1Players.length) { toast('Place des joueurs dans les deux équipes !'); return; }
+  const nom = prompt('Nom du match (ex: Samedi 21/06)', new Date().toLocaleDateString('fr-FR'));
+  if (nom === null) return;
   const prono = {
     id: uid(),
+    nom: nom.trim() || null,
     date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
     teams: [
-      { nom: TEAM_NAMES[0], joueurs: team0Players },
-      { nom: TEAM_NAMES[1], joueurs: team1Players },
+      { nom: TEAM_NAMES[0], joueurs: team0Players, predictions: {} },
+      { nom: TEAM_NAMES[1], joueurs: team1Players, predictions: {} },
     ],
     format: '2',
   };
-  if (sb) await sb.from('pronostiques').upsert({ id: prono.id, date: prono.date, teams: prono.teams, format: prono.format });
+  if (sb) await sb.from('pronostiques').upsert({ id: prono.id, nom: prono.nom, date: prono.date, teams: prono.teams, format: prono.format });
   pronos.unshift(prono);
   renderPronos();
   toast('Pronostique enregistré ✓');
@@ -1298,3 +1328,33 @@ async function savePronoFromTeams() {
 // Init au chargement
 setTimeout(() => { if (document.getElementById('matchPitchCanvas')) initMatchPitch(); }, 100);
 window.addEventListener('resize', () => { if (document.getElementById('matchPitchCanvas')) drawMatchField(); });
+
+async function renameMatch(id) {
+  const m = historique.find(mm => mm.id === id);
+  if (!m) return;
+  const newNom = prompt('Nom du match (ex: 13/06 vs Antoine)', m.nom || m.date);
+  if (newNom === null || !newNom.trim()) return;
+  m.nom = newNom.trim();
+  save('bamfc_historique', historique);
+  if (sb) await sb.from('historique').update({ nom: m.nom }).eq('id', id);
+  renderHistorique();
+  toast('Match renomme');
+}
+
+async function changePred(pronoId, teamIdx, joueurId, delta) {
+  const p = pronos.find(pp => pp.id === pronoId);
+  if (!p) return;
+  if (!p.teams[teamIdx].predictions) p.teams[teamIdx].predictions = {};
+  const cur = p.teams[teamIdx].predictions[joueurId] || 0;
+  p.teams[teamIdx].predictions[joueurId] = Math.max(0, cur + delta);
+  if (sb) await sb.from('pronostiques').update({ teams: p.teams }).eq('id', pronoId);
+  // Rerender just the value
+  const allTerrain = document.querySelectorAll('.match-terrain');
+  allTerrain.forEach(t => {
+    if (t.innerHTML.includes(pronoId) || true) {
+      const idx = pronos.findIndex(pp => pp.id === pronoId);
+      const target = document.getElementById('pronoTerrain' + idx);
+      if (target && target.style.display !== 'none') renderPronoTerrain(target, p);
+    }
+  });
+}

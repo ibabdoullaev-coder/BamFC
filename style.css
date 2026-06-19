@@ -489,7 +489,7 @@ td.empty-state { padding: 2rem; }
 .is-viewer #joueurs .btn-ghost,
 .is-viewer #historique .btn-ghost.danger { display: none !important; }
 
-.is-viewer .player-card { cursor: default; }
+/* viewer click ok */
 
 /* Coach: voit #match + ajouter/supprimer joueurs, mais pas Import / Terrain / clear historique */
 .is-coach:not(.is-admin) #import,
@@ -648,3 +648,17 @@ td.empty-state { padding: 2rem; }
   #stats .stat-avatar { width: 26px !important; height: 26px !important; font-size: 11px !important; }
   #stats .win-bar-bg { max-width: 70px !important; }
 }
+
+/* PRONO PREDICTIONS */
+.prono-predictions { padding: 1rem; background: var(--bg-card2); border-radius: var(--radius); margin-top: 1rem; }
+.prono-predictions h4 { font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.pred-team { padding: 8px 12px; margin-bottom: 8px; background: var(--bg-card); border-radius: var(--radius); }
+.pred-team-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.pred-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.pred-controls { display: flex; align-items: center; gap: 8px; }
+.pred-controls button { width: 24px; height: 24px; border-radius: 50%; background: var(--bg-card2); border: 0.5px solid var(--border); color: var(--text); cursor: pointer; font-size: 14px; }
+.pred-controls button:hover { border-color: var(--accent); color: var(--accent); }
+.pred-val { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--accent); min-width: 20px; text-align: center; }
+
+.match-rename { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 0 6px; margin-left: 4px; }
+.match-rename:hover { color: var(--accent); }
