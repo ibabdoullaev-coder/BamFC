@@ -1964,3 +1964,102 @@ function hideNudgeOnLogin() {
 }
 
 // Appel apres sync
+
+function openFutEditor(playerId) {
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return;
+  if (!isAdmin && getMyPlayerId() !== playerId) { toast('Seul ' + j.nom + ' peut editer ses stats'); return; }
+  const stats = getPlayerFifaStats(j).map(s => ({...s}));
+  renderFutEditor(j, stats);
+  openModal('modalFutEditor');
+}
+
+function renderFutEditor(j, stats) {
+  let html = '<div style="display:flex;justify-content:center;margin-bottom:1.25rem">' + makeFutCard({...j, stats}, 'fut-card-large') + '</div>';
+
+  const posOptions = POSITIONS.map(p => '<option value="' + p + '"' + (j.poste === p ? ' selected' : '') + '>' + p + '</option>').join('');
+  const countryOptions = COUNTRIES.map(c => '<option value="' + c.code + '"' + (j.country === c.code ? ' selected' : '') + '>' + c.flag + ' ' + c.n + '</option>').join('');
+  const clubOptions = CLUBS.map(c => '<option value="' + c.id + '"' + ((j.club || 'bamfc') === c.id ? ' selected' : '') + '>' + c.n + '</option>').join('');
+
+  html += '<div class="fut-meta-row"><label>Position</label><select class="input" id="futPosSel">' + posOptions + '</select></div>';
+  html += '<div class="fut-meta-row"><label>Pays</label><select class="input" id="futCountrySel">' + countryOptions + '</select></div>';
+  html += '<div class="fut-meta-row"><label>Club</label><select class="input" id="futClubSel">' + clubOptions + '</select></div>';
+
+  html += '<h4 style="margin:1rem 0 8px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Stats (1-99)</h4>';
+  html += '<div id="futStatsList" class="fut-editor-list">';
+  stats.forEach((s, i) => {
+    html += '<div class="fut-stat-row"><input type="text" class="fut-stat-label input" data-i="' + i + '" value="' + s.label + '" maxlength="6" /><input type="number" class="fut-stat-value input" data-i="' + i + '" value="' + s.value + '" min="1" max="99" /><button class="btn-ghost danger" onclick="removeFutStat(\'' + j.id + '\', ' + i + ')" title="Retirer">×</button></div>';
+  });
+  html += '</div>';
+  html += '<button class="btn-ghost" onclick="addFutStat(\'' + j.id + '\')" style="width:100%;margin-top:10px">+ Ajouter un attribut</button>';
+  html += '<button class="btn-primary full" onclick="saveFutStats(\'' + j.id + '\')" style="margin-top:1rem">Sauvegarder</button>';
+
+  document.getElementById('futEditorBody').innerHTML = html;
+  window._futCurrentJoueur = j;
+
+  ['futPosSel', 'futCountrySel', 'futClubSel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateFutPreview);
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.fut-stat-label, .fut-stat-value').forEach(el => {
+      el.addEventListener('input', updateFutPreview);
+    });
+  }, 50);
+}
+
+function updateFutPreview() {
+  const stats = collectFutStatsFromUI();
+  const j = window._futCurrentJoueur;
+  const preview = {
+    ...j,
+    stats,
+    poste: document.getElementById('futPosSel') ? document.getElementById('futPosSel').value : j.poste,
+    country: document.getElementById('futCountrySel') ? document.getElementById('futCountrySel').value : j.country,
+    club: document.getElementById('futClubSel') ? document.getElementById('futClubSel').value : j.club,
+  };
+  const parent = document.querySelector('#futEditorBody > div:first-child');
+  if (parent) parent.innerHTML = makeFutCard(preview, 'fut-card-large');
+}
+
+function collectFutStatsFromUI() {
+  const stats = [];
+  document.querySelectorAll('.fut-stat-row').forEach(row => {
+    const label = row.querySelector('.fut-stat-label').value.trim().toUpperCase().slice(0, 6) || 'STAT';
+    const value = Math.max(1, Math.min(99, parseInt(row.querySelector('.fut-stat-value').value) || 70));
+    stats.push({ key: label, label, value });
+  });
+  return stats;
+}
+
+function addFutStat(playerId) {
+  const stats = collectFutStatsFromUI();
+  if (stats.length >= 10) { toast('Max 10 attributs'); return; }
+  stats.push({ key: 'NEW', label: 'NEW', value: 70 });
+  renderFutEditor(window._futCurrentJoueur, stats);
+}
+
+function removeFutStat(playerId, idx) {
+  const stats = collectFutStatsFromUI();
+  if (stats.length <= 2) { toast('Min 2 attributs'); return; }
+  stats.splice(idx, 1);
+  renderFutEditor(window._futCurrentJoueur, stats);
+}
+
+async function saveFutStats(playerId) {
+  const stats = collectFutStatsFromUI();
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return;
+  j.stats = stats;
+  j.rating = Math.round(stats.reduce((s, x) => s + x.value, 0) / stats.length);
+  if (document.getElementById('futPosSel')) j.poste = document.getElementById('futPosSel').value;
+  if (document.getElementById('futCountrySel')) j.country = document.getElementById('futCountrySel').value;
+  if (document.getElementById('futClubSel')) j.club = document.getElementById('futClubSel').value;
+  save('bamfc_joueurs', joueurs);
+  await pushJoueur(j);
+  closeModal('modalFutEditor');
+  closeModal('modalProfile');
+  renderJoueurs();
+  toast('Stats FUT sauvegardees');
+  openPlayerProfile(playerId);
+}
