@@ -66,6 +66,7 @@ async function syncFromCloud() {
     renderSideLeaderboard();
     updateHero();
     console.log('Synced from cloud');
+    syncPronos();
   } catch (e) { console.warn('Sync error:', e); }
 }
 
@@ -193,9 +194,42 @@ function shuffle(arr) {
   return a;
 }
 
-function tirerEquipes() {
+let selectedJoueurs = null; // ids des joueurs selectionnes pour le match
+
+function openJoueurSelection() {
   if (joueurs.length < 2) { toast('Ajoute au moins 2 joueurs !'); return; }
-  const pool = shuffle(joueurs);
+  if (!selectedJoueurs) selectedJoueurs = joueurs.map(j => j.id);
+  const html = joueurs.map(j => {
+    const col = colorFor(j.nom);
+    const checked = selectedJoueurs.includes(j.id);
+    const avatar = j.photo ? `<div class="js-avatar" style="background-image:url('${j.photo}')"></div>` : `<div class="js-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+    return `<label class="js-row ${checked ? 'checked' : ''}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleJoueurSel('${j.id}', this)" />
+      ${avatar}
+      <span>${j.nom}</span>
+    </label>`;
+  }).join('');
+  document.getElementById('joueurSelList').innerHTML = html;
+  openModal('modalSelJoueurs');
+}
+
+function toggleJoueurSel(id, cb) {
+  if (cb.checked) {
+    if (!selectedJoueurs.includes(id)) selectedJoueurs.push(id);
+  } else {
+    selectedJoueurs = selectedJoueurs.filter(x => x !== id);
+  }
+  cb.closest('.js-row').classList.toggle('checked', cb.checked);
+}
+
+function confirmJoueurSel() {
+  closeModal('modalSelJoueurs');
+  tirerEquipes();
+}
+
+function tirerEquipes() {
+  if (!selectedJoueurs || selectedJoueurs.length < 2) { openJoueurSelection(); return; }
+  const pool = shuffle(joueurs.filter(j => selectedJoueurs.includes(j.id)));
   if (currentFormat === '3') {
     currentTeams = [[], [], []];
     pool.forEach((j, i) => currentTeams[i % 3].push(j));
@@ -206,10 +240,29 @@ function tirerEquipes() {
   scores = currentTeams.map(() => 0);
   butsParJoueur = {};
   renderTeams();
-  renderScoreInputs();
+  // ne PLUS afficher le scoreInputs : c est juste un pronostique
   document.getElementById('teamsWrap').style.display = '';
   playerPositions = {};
   renderTerrain();
+  // Sauvegarder direct comme prono
+  saveCurrentAsProno();
+}
+
+async function saveCurrentAsProno() {
+  if (!sb) return;
+  const prono = {
+    id: uid(),
+    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    teams: currentTeams.map((team, ti) => ({
+      nom: TEAM_NAMES[ti],
+      joueurs: team.map(p => p.id),
+    })),
+    format: currentFormat,
+  };
+  await sb.from('pronostiques').upsert({ id: prono.id, date: prono.date, teams: prono.teams, format: prono.format });
+  pronos.unshift(prono);
+  renderPronos();
+  toast('Pronostique créé');
 }
 
 function renderTeams() {
@@ -973,3 +1026,108 @@ function setStatsSort(mode) {
 }
 
 
+
+// ─── PRONOSTIQUES ─────────────────────────────────────────
+let pronos = [];
+
+async function syncPronos() {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from('pronostiques').select('*').order('created_at', { ascending: false });
+    if (data) {
+      pronos = data.map(r => ({ id: r.id, date: r.date, teams: r.teams, format: r.format }));
+      renderPronos();
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function renderPronos() {
+  const el = document.getElementById('pronosList');
+  if (!el) return;
+  if (!pronos.length) {
+    el.innerHTML = '<div class="empty-state">Aucun pronostique. Lance un tirage au sort !</div>';
+    return;
+  }
+  el.innerHTML = pronos.map((p, pi) => {
+    const teamsHtml = p.teams.map((t, ti) => {
+      const noms = t.joueurs.map(jid => joueurs.find(j => j.id === jid)?.nom || '?').join(', ');
+      return `<div class="prono-team" style="color:${TEAM_ACCENT[ti]}">${t.nom}: ${noms}</div>`;
+    }).join('');
+    return `<div class="match-card-wrap">
+      <div class="match-card" onclick="togglePronoTerrain(${pi})">
+        <span class="match-date">${p.date}</span>
+        <div class="match-teams" style="flex-direction:column;align-items:flex-start;gap:4px">${teamsHtml}</div>
+        <span class="match-expand">⚽</span>
+      </div>
+      <div class="match-terrain" id="pronoTerrain${pi}" style="display:none"></div>
+    </div>`;
+  }).join('');
+}
+
+function togglePronoTerrain(pi) {
+  const p = pronos[pi];
+  if (!p) return;
+  const el = document.getElementById('pronoTerrain' + pi);
+  if (!el) return;
+  if (el.style.display === 'none') {
+    renderPronoTerrain(el, p);
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+}
+
+function renderPronoTerrain(el, p) {
+  el.innerHTML = '<div class="hist-pitch-wrap"><canvas class="hist-pitch-canvas"></canvas><div class="hist-pitch-players"></div></div>' +
+    (isCoach ? '<div style="text-align:center;margin-top:1rem"><button class="btn-ghost danger" onclick="deleteProno(\''+p.id+'\')">Supprimer ce pronostique</button></div>' : '');
+  const canvas = el.querySelector('.hist-pitch-canvas');
+  const W = el.querySelector('.hist-pitch-wrap').clientWidth || 700;
+  const H = W * 0.65;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+    ctx.fillRect(i * (W/12), 0, W/12, H);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(W/2, 8); ctx.lineTo(W/2, H-8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, H*0.18, 0, Math.PI*2); ctx.stroke();
+  const bw = W*0.13, bh = H*0.55, by = (H-bh)/2;
+  ctx.strokeRect(8, by, bw, bh);
+  ctx.strokeRect(W-8-bw, by, bw, bh);
+
+  const container = el.querySelector('.hist-pitch-players');
+  const posLeft  = [[0.06,0.50],[0.20,0.25],[0.20,0.75],[0.35,0.35],[0.35,0.65]];
+  const posRight = [[0.94,0.50],[0.80,0.25],[0.80,0.75],[0.65,0.35],[0.65,0.65]];
+
+  p.teams.forEach((team, ti) => {
+    const positions = ti === 0 ? posLeft : posRight;
+    const acc = TEAM_ACCENT[ti];
+    team.joueurs.slice(0, 5).forEach((jid, idx) => {
+      const j = joueurs.find(jj => jj.id === jid);
+      if (!j) return;
+      const pos = positions[idx] || [0.5, ti === 0 ? 0.20 : 0.80];
+      const col = colorFor(j.nom);
+      const el2 = document.createElement('div');
+      el2.className = 'pitch-player';
+      el2.style.left = (pos[0] * 100) + '%';
+      el2.style.top = (pos[1] * 100) + '%';
+      const avatarHtml = j.photo
+        ? '<div class="pp-avatar" style="background-image:url(\'' + j.photo + '\');background-size:cover;background-position:center"></div>'
+        : '<div class="pp-avatar" style="background:' + col.bg + ';color:' + col.text + '">' + initials(j.nom) + '</div>';
+      el2.innerHTML = '<div class="pp-card" style="border-color:' + acc + '">' + avatarHtml + '<div class="pp-name">' + j.nom + '</div></div>';
+      container.appendChild(el2);
+    });
+  });
+}
+
+async function deleteProno(id) {
+  if (!confirm('Supprimer ce pronostique ?')) return;
+  if (sb) await sb.from('pronostiques').delete().eq('id', id);
+  pronos = pronos.filter(p => p.id !== id);
+  renderPronos();
+  toast('Pronostique supprime');
+}

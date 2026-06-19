@@ -17,6 +17,7 @@
   <div class="nav-links">
     <a href="#joueurs" class="nav-link">Joueurs</a>
     <a href="#match" class="nav-link">Match</a>
+    <a href="#pronos" class="nav-link">Pronos</a>
     <a href="#import" class="nav-link">Import</a>
     <a href="#terrain" class="nav-link">Terrain</a>
     <a href="#historique" class="nav-link">Historique</a>
@@ -61,16 +62,10 @@
       <button class="pill" data-format="3">3 × 4</button>
       <button class="pill" data-format="2free">2 libres</button>
     </div>
-    <button class="btn-primary" onclick="tirerEquipes()">🎲 Tirer au sort</button>
+    <button class="btn-primary" onclick="openJoueurSelection()">🎲 Tirer au sort</button>
   </div>
   <div class="teams-wrap" id="teamsWrap" style="display:none">
     <div class="teams-grid" id="teamsGrid"></div>
-    <div class="score-section">
-      <h3 class="subsection-title">Saisir le score</h3>
-      <div class="score-input-row" id="scoreInputRow"></div>
-      <div class="buts-section" id="butsSection"></div>
-      <button class="btn-primary" onclick="enregistrerMatch()">✅ Enregistrer le match</button>
-    </div>
   </div>
 </section>
 
@@ -116,6 +111,16 @@
       <canvas id="terrainCanvas"></canvas>
       <div id="terrainPlayers"></div>
     </div>
+  </div>
+</section>
+
+<!-- PRONOSTIQUES -->
+<section class="section" id="pronos">
+  <div class="section-header">
+    <h2 class="section-title">Pronostiques (tirages)</h2>
+  </div>
+  <div id="pronosList">
+    <div class="empty-state">Aucun pronostique.</div>
   </div>
 </section>
 
@@ -184,6 +189,20 @@
     </div>
     <div class="modal-body">
       <video id="videoPlayer" controls autoplay style="width:100%;border-radius:8px;background:#000"></video>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SELECTION JOUEURS -->
+<div class="modal-overlay" id="modalSelJoueurs" onclick="closeModalIfBg(event,'modalSelJoueurs')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Qui joue aujourd'hui ?</span>
+      <button class="modal-close" onclick="closeModal('modalSelJoueurs')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="joueurSelList" style="max-height:50vh;overflow-y:auto"></div>
+      <button class="btn-primary full" onclick="confirmJoueurSel()">🎲 Tirer au sort</button>
     </div>
   </div>
 </div>

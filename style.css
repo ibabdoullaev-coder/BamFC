@@ -491,17 +491,12 @@ td.empty-state { padding: 2rem; }
 
 .is-viewer .player-card { cursor: default; }
 
-/* Coach: voit #match mais pas Import / Terrain / admin tools */
+/* Coach: voit #match + ajouter/supprimer joueurs, mais pas Import / Terrain / clear historique */
 .is-coach:not(.is-admin) #import,
 .is-coach:not(.is-admin) [href="#import"],
 .is-coach:not(.is-admin) #terrain,
 .is-coach:not(.is-admin) [href="#terrain"],
-.is-coach:not(.is-admin) .player-delete,
-.is-coach:not(.is-admin) .player-edit-hint,
-.is-coach:not(.is-admin) #joueurs .btn-ghost,
 .is-coach:not(.is-admin) #historique .btn-ghost.danger { display: none !important; }
-
-.is-coach:not(.is-admin) .player-card { cursor: default; }
 
 .is-admin::after {
   content: '⚙ ADMIN';
@@ -558,4 +553,26 @@ td.empty-state { padding: 2rem; }
   #match .match-config .pill { font-size: 14px; padding: 8px 18px; }
   #match .match-config .btn-primary { padding: 12px 28px; font-size: 15px; }
   #match .section-title { font-size: 24px; }
+}
+
+/* SEL JOUEURS MODAL */
+.js-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; transition: background 0.15s; }
+.js-row:hover { background: var(--bg-card2); }
+.js-row.checked { background: var(--accent-dim); }
+.js-row input { accent-color: var(--accent); width: 16px; height: 16px; }
+.js-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background-size: cover; background-position: center; flex-shrink: 0; }
+.js-row span { font-size: 14px; color: var(--text); }
+
+/* PRONOS */
+.prono-team { font-size: 13px; }
+
+/* Win bar plus visible */
+.win-bar-fill { background: linear-gradient(90deg, #4AFF6A, #88FFA0) !important; height: 4px !important; }
+.win-bar-bg { background: rgba(255,255,255,0.08) !important; }
+
+/* Classement plus grand */
+@media (min-width: 1100px) {
+  #stats { width: 460px !important; }
+  .hero, .section { padding-right: calc(480px + 3rem) !important; }
+  #stats .stats-table td { padding: 10px 6px !important; font-size: 13px !important; }
 }
