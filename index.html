@@ -249,6 +249,17 @@
   </div>
 </div>
 
+<!-- MODAL FUT EDITOR -->
+<div class="modal-overlay" id="modalFutEditor" onclick="closeModalIfBg(event,'modalFutEditor')">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">Stats FUT</span>
+      <button class="modal-close" onclick="closeModal('modalFutEditor')">×</button>
+    </div>
+    <div class="modal-body" id="futEditorBody"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

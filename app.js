@@ -135,7 +135,7 @@ async function syncFromCloud() {
       sb.from('historique').select('*').order('created_at', { ascending: false })
     ]);
     if (j) {
-      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [] }));
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [], stats: r.stats || null, rating: r.rating || null }));
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
@@ -164,7 +164,7 @@ async function syncFromCloud() {
 
 async function pushJoueur(j) {
   if (!sb) return;
-  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null });
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null, stats: j.stats || null, rating: j.rating || null });
 }
 async function deleteJoueurCloud(id) {
   if (!sb) return;
@@ -194,6 +194,64 @@ const COLORS = [
   { bg: '#3a1a1a', text: '#FF6B4A' },
   { bg: '#2a3a1a', text: '#AAFF4A' },
 ];
+
+
+const FIFA_STATS_DEFAULT = [
+  { key: 'PAC', label: 'PAC', value: 70 },
+  { key: 'SHO', label: 'SHO', value: 70 },
+  { key: 'PAS', label: 'PAS', value: 70 },
+  { key: 'DRI', label: 'DRI', value: 70 },
+  { key: 'DEF', label: 'DEF', value: 70 },
+  { key: 'PHY', label: 'PHY', value: 70 },
+];
+
+function getPlayerFifaStats(j) {
+  if (j.stats && Array.isArray(j.stats) && j.stats.length) return j.stats;
+  return FIFA_STATS_DEFAULT.map(s => ({ ...s }));
+}
+
+function getPlayerRating(j) {
+  if (j.rating) return j.rating;
+  const stats = getPlayerFifaStats(j);
+  return Math.round(stats.reduce((s, x) => s + x.value, 0) / stats.length);
+}
+
+function getFutCardStyle(rating) {
+  if (rating >= 90) return { bg: 'linear-gradient(135deg,#f5dba5,#fff5d4,#d4a843)', border: '#a87a1a', text: '#3a2800' };
+  if (rating >= 85) return { bg: 'linear-gradient(135deg,#d4a843,#f0c84a,#e0b53a)', border: '#8a6515', text: '#3a2800' };
+  if (rating >= 80) return { bg: 'linear-gradient(135deg,#c4c4c4,#e8e8e8,#aaaaaa)', border: '#666', text: '#1a1a1a' };
+  if (rating >= 75) return { bg: 'linear-gradient(135deg,#9b6a3c,#c4925e,#7a4d28)', border: '#5a3a1c', text: '#fff' };
+  if (rating >= 65) return { bg: 'linear-gradient(135deg,#5a8fc4,#7ab0e0,#4a7fb4)', border: '#3a6fa0', text: '#fff' };
+  return { bg: 'linear-gradient(135deg,#6a6a6a,#888,#5a5a5a)', border: '#444', text: '#fff' };
+}
+
+function makeFutCard(j, sizeClass) {
+  const stats = getPlayerFifaStats(j);
+  const rating = getPlayerRating(j);
+  const style = getFutCardStyle(rating);
+  const col = colorFor(j.nom);
+  const photo = j.photo
+    ? `<div class="fut-photo" style="background-image:url('${j.photo}')"></div>`
+    : `<div class="fut-photo" style="background:${col.bg};color:${col.text};display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700">${initials(j.nom)}</div>`;
+
+  const half = Math.ceil(stats.length / 2);
+  const col1 = stats.slice(0, half);
+  const col2 = stats.slice(half);
+  const statsHtml = `<div class="fut-stats">
+    <div class="fut-stats-col">${col1.map(s => `<div><b>${s.value}</b> ${s.label}</div>`).join('')}</div>
+    <div class="fut-stats-col">${col2.map(s => `<div><b>${s.value}</b> ${s.label}</div>`).join('')}</div>
+  </div>`;
+
+  return `<div class="fut-card ${sizeClass || ''}" style="background:${style.bg};border-color:${style.border};color:${style.text}">
+    <div class="fut-top">
+      <div class="fut-rating">${rating}</div>
+      <div class="fut-pos">${j.poste || 'JR'}</div>
+    </div>
+    ${photo}
+    <div class="fut-name">${j.nom}</div>
+    ${statsHtml}
+  </div>`;
+}
 
 function colorFor(name) {
   let h = 0;
@@ -249,16 +307,9 @@ function renderJoueurs() {
     return;
   }
   grid.innerHTML = joueurs.map(j => {
-    const col = colorFor(j.nom);
-    const avatar = j.photo
-      ? `<div class="player-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center"></div>`
-      : `<div class="player-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
-    return `<div class="player-card" onclick="openPhotoModal('${j.id}')">
-      <button class="player-delete" onclick="event.stopPropagation();supprimerJoueur('${j.id}')" title="Supprimer">×</button>
-      ${avatar}
-      <div class="player-name">${j.nom}</div>
-      ${j.poste ? `<div class="player-poste">${j.poste}</div>` : ''}
-      <div class="player-edit-hint">📷 Photo</div>
+    return `<div class="player-card-fut" onclick="openPlayerProfile('${j.id}')">
+      ${isAdmin ? `<button class="player-delete" onclick="event.stopPropagation();supprimerJoueur('${j.id}')" title="Supprimer">×</button>` : ''}
+      ${makeFutCard(j)}
     </div>`;
   }).join('');
 }
@@ -1596,13 +1647,18 @@ function openPlayerProfile(playerId) {
     <div><span class="ps-num">${stats.winPct}%</span><span class="ps-label">win</span></div>
   </div>`;
 
-  // Boutons admin pour gerer alias / fusionner
-  if (isAdmin) {
-    html += `<div style="margin:1rem 0;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn-ghost" onclick="manageAliases('${j.id}')">⚙ Gerer alias</button>
-      <button class="btn-primary" onclick="mergePlayer('${j.id}')">🔀 Fusionner des joueurs ici</button>
-    </div>`;
-  }
+  // Bouton FUT stats (admin OU le joueur lui-meme)
+  const canEditFut = isAdmin || getMyPlayerId() === j.id;
+  const canEditPhoto = isAdmin || getMyPlayerId() === j.id;
+  let btns = '';
+  if (canEditPhoto) btns += `<button class="btn-ghost" onclick="openPhotoModal('${j.id}')">📷 Changer la photo</button>`;
+  if (canEditFut) btns += `<button class="btn-ghost" onclick="openFutEditor('${j.id}')">⚽ Mes stats FUT</button>`;
+  if (isAdmin) btns += `<button class="btn-ghost" onclick="manageAliases('${j.id}')">⚙ Gerer alias</button>`;
+  if (isAdmin) btns += `<button class="btn-primary" onclick="mergePlayer('${j.id}')">🔀 Fusionner ici</button>`;
+  if (btns) html += `<div style="margin:1rem 0;display:flex;gap:8px;flex-wrap:wrap">${btns}</div>`;
+
+  // Carte FUT en evidence en haut du profil
+  html = `<div style="display:flex;justify-content:center;margin-bottom:1.5rem">${makeFutCard(j, 'fut-card-large')}</div>` + html;
 
   // Liste des buts
   html += '<h4 style="margin-top:1.5rem;color:var(--text-muted);font-size:13px;text-transform:uppercase;letter-spacing:0.05em">Buts</h4>';
