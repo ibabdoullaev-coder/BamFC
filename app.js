@@ -1358,3 +1358,14 @@ async function changePred(pronoId, teamIdx, joueurId, delta) {
     }
   });
 }
+
+async function deleteMatch(id) {
+  if (!confirm('Supprimer ce match de l historique ?')) return;
+  historique = historique.filter(m => m.id !== id);
+  save('bamfc_historique', historique);
+  if (sb) await sb.from('historique').delete().eq('id', id);
+  renderHistorique();
+  renderStats();
+  updateHero();
+  toast('Match supprime');
+}
