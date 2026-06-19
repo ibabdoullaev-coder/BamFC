@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "node-fetch": "^2.7.0",
-    "cheerio": "^1.0.0"
+    "@aws-sdk/client-s3": "^3.1072.0",
+    "cheerio": "^1.0.0",
+    "node-fetch": "^2.7.0"
   }
 }

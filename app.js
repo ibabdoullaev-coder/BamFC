@@ -1043,7 +1043,7 @@ function playVideo(url, title, time) {
   openModal('modalVideo');
 }
 
-function enregistrerImportComme() {
+async function enregistrerImportComme() {
   if (!lastImportData) return;
   const d = lastImportData;
   const teams = d.teams || [];
@@ -1065,16 +1065,36 @@ function enregistrerImportComme() {
     if (j) butsMap[j.id] = (butsMap[j.id] || 0) + 1;
   });
 
+  toast('Archivage des videos en cours...');
+  // Archiver les videos sur R2 en parallele
+  const videosToArchive = d.buts.filter(b => b.videoUrl);
+  const archivedVideos = await Promise.all(videosToArchive.map(async b => {
+    try {
+      // Cle stable basee sur l ID de but lefive
+      const key = 'matches/' + (b.matchId || 'unknown') + '/but-' + b.id + '.mp4';
+      const resp = await fetch('/api/archive-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoUrl: b.videoUrl, key }),
+      });
+      const data = await resp.json();
+      return { playerName: b.playerName, time: b.time, url: data.url || b.videoUrl, lefiveUrl: b.videoUrl };
+    } catch (e) {
+      console.warn('Archive failed for', b.id, e);
+      return { playerName: b.playerName, time: b.time, url: b.videoUrl };
+    }
+  }));
+
   const match = {
     id: uid(),
     date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
     teams: teams.map(t => ({
       nom: t.name,
       joueurs: t.joueurs.map(p => joueurs.find(j => j.nom === p.name)?.id).filter(Boolean),
-      score: d.score[t.id] || 0,
+      score: d.score[t.id] || score[String(t.id)] || 0,
     })),
     buts: butsMap,
-    videos: d.buts.filter(b => b.videoUrl).map(b => ({ playerName: b.playerName, time: b.time, url: b.videoUrl })),
+    videos: archivedVideos,
     source: 'lefive',
   };
   historique.unshift(match);

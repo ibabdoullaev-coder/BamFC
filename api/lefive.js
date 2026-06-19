@@ -37,6 +37,7 @@ module.exports = async (req, res) => {
     // Buts depuis events
     const buts = events.filter(e => e.easyLiveEvent?.event_type === 'Point').map(e => ({
       id: e.id,
+      matchId: matchId,
       playerName: e.player?.name,
       playerId: e.player?.id,
       teamId: e.player?.teamId,
