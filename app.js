@@ -708,7 +708,18 @@ function updateHero() {
 
 // ─── MODAL ───────────────────────────────────────────────
 function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Si c'est la modal video, stop le son
+  if (id === 'modalVideo') {
+    const v = document.getElementById('videoPlayer');
+    if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+    const list = document.getElementById('playerGoalsList');
+    if (list) list.remove();
+    const vp = document.getElementById('videoPlayer');
+    if (vp) vp.style.display = '';
+  }
+}
 function closeModalIfBg(e, id) { if (e.target.id === id) closeModal(id); }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));

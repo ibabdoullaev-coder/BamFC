@@ -714,3 +714,7 @@ td.empty-state { padding: 2rem; }
 @media (max-width: 600px) {
   .login-nudge { left: 12px; right: 12px; bottom: 12px; max-width: none; }
 }
+
+/* MODAL VIDEO AU DESSUS */
+#modalVideo { z-index: 300 !important; }
+#modalProfile { z-index: 200 !important; }
