@@ -54,18 +54,23 @@
 <section class="section" id="match">
   <div class="section-header">
     <h2 class="section-title">Nouveau match</h2>
-  </div>
-  <div class="match-config">
-    <label class="config-label">Format</label>
-    <div class="format-pills">
-      <button class="pill active" data-format="2">2 × 5</button>
-      <button class="pill" data-format="3">3 × 4</button>
-      <button class="pill" data-format="2free">2 libres</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="randomFillTeams()">🎲 Tirer au sort</button>
+      <button class="btn-ghost" onclick="clearTeams()">↺ Vider</button>
+      <button class="btn-primary" onclick="savePronoFromTeams()">💾 Enregistrer pronostique</button>
     </div>
-    <button class="btn-primary" onclick="openJoueurSelection()">🎲 Tirer au sort</button>
   </div>
-  <div class="teams-wrap" id="teamsWrap" style="display:none">
-    <div class="teams-grid" id="teamsGrid"></div>
+
+  <!-- Terrain interactif -->
+  <div class="match-pitch-big" id="matchPitchBig">
+    <canvas id="matchPitchCanvas"></canvas>
+    <div class="match-pitch-slots" id="matchPitchSlots"></div>
+  </div>
+
+  <!-- Banc des joueurs -->
+  <div class="bench-wrap">
+    <h3 class="subsection-title">Joueurs disponibles · drag sur le terrain</h3>
+    <div class="bench" id="bench"></div>
   </div>
 </section>
 

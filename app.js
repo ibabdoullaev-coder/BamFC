@@ -63,7 +63,7 @@ async function syncFromCloud() {
     renderJoueurs();
     renderHistorique();
     renderStats();
-    renderSideLeaderboard();
+    renderBench();
     updateHero();
     console.log('Synced from cloud');
     syncPronos();
@@ -413,6 +413,7 @@ function renderHistorique() {
     const hasVideos = (m.videos || []).length > 0;
     return `<div class="match-card-wrap">
       <div class="match-card" onclick="toggleMatchTerrain(${mi})">
+        ${isAdmin ? `<button class="match-delete" onclick="event.stopPropagation();deleteMatch('${m.id}')">×</button>` : ''}
         <span class="match-date">${m.date}</span>
         <div class="match-teams">
           ${m.teams.map((t, i) => {
@@ -1131,3 +1132,169 @@ async function deleteProno(id) {
   renderPronos();
   toast('Pronostique supprime');
 }
+
+// ─── MATCH DRAG&DROP ─────────────────────────────────────
+const SLOT_POSITIONS_LEFT  = [[0.05,0.50],[0.18,0.22],[0.18,0.78],[0.33,0.35],[0.33,0.65]];
+const SLOT_POSITIONS_RIGHT = [[0.95,0.50],[0.82,0.22],[0.82,0.78],[0.67,0.35],[0.67,0.65]];
+let slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
+
+function initMatchPitch() {
+  drawMatchField();
+  renderSlots();
+  renderBench();
+}
+
+function drawMatchField() {
+  const canvas = document.getElementById('matchPitchCanvas');
+  if (!canvas) return;
+  const W = canvas.parentElement.clientWidth || 900;
+  const H = W * 0.65;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  for (let i = 0; i < 14; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+    ctx.fillRect(i * (W/14), 0, W/14, H);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(W/2, 8); ctx.lineTo(W/2, H-8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, H*0.18, 0, Math.PI*2); ctx.stroke();
+  const bw = W*0.13, bh = H*0.55, by = (H-bh)/2;
+  ctx.strokeRect(8, by, bw, bh);
+  ctx.strokeRect(W-8-bw, by, bw, bh);
+}
+
+function renderSlots() {
+  const container = document.getElementById('matchPitchSlots');
+  if (!container) return;
+  container.innerHTML = '';
+  [0, 1].forEach(ti => {
+    const teamKey = 'team' + ti;
+    const positions = ti === 0 ? SLOT_POSITIONS_LEFT : SLOT_POSITIONS_RIGHT;
+    const acc = TEAM_ACCENT[ti];
+    slots[teamKey].forEach((playerId, idx) => {
+      const pos = positions[idx];
+      const slot = document.createElement('div');
+      slot.className = 'match-slot' + (playerId ? ' filled' : '');
+      slot.style.left = (pos[0] * 100) + '%';
+      slot.style.top = (pos[1] * 100) + '%';
+      slot.dataset.team = ti;
+      slot.dataset.idx = idx;
+
+      if (playerId) {
+        const j = joueurs.find(jj => jj.id === playerId);
+        if (j) {
+          const col = colorFor(j.nom);
+          const avatar = j.photo ? `<div class="pp-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center;border-color:${acc}"></div>` : `<div class="pp-avatar" style="background:${col.bg};color:${col.text};border-color:${acc}">${initials(j.nom)}</div>`;
+          slot.innerHTML = `<div class="slot-card" draggable="true" data-pid="${j.id}" data-from-team="${ti}" data-from-idx="${idx}" style="border-color:${acc}">${avatar}<div class="pp-name">${j.nom}</div></div>`;
+        }
+      } else {
+        slot.innerHTML = `<div class="slot-empty" style="border-color:${acc}">+</div>`;
+      }
+
+      // Drop handlers
+      slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drop-over'); });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drop-over'));
+      slot.addEventListener('drop', e => {
+        e.preventDefault();
+        slot.classList.remove('drop-over');
+        handleDrop(ti, idx);
+      });
+      container.appendChild(slot);
+    });
+  });
+  // Drag start sur slot cards
+  container.querySelectorAll('.slot-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragData = { pid: card.dataset.pid, fromTeam: parseInt(card.dataset.fromTeam), fromIdx: parseInt(card.dataset.fromIdx) };
+    });
+  });
+}
+
+let dragData = null;
+
+function renderBench() {
+  const bench = document.getElementById('bench');
+  if (!bench) return;
+  // Joueurs deja sur terrain
+  const onPitch = new Set();
+  slots.team0.forEach(id => id && onPitch.add(id));
+  slots.team1.forEach(id => id && onPitch.add(id));
+
+  const available = joueurs.filter(j => !onPitch.has(j.id));
+  if (!available.length) {
+    bench.innerHTML = '<div class="empty-state" style="padding:1rem">Tous les joueurs sont sur le terrain</div>';
+    return;
+  }
+  bench.innerHTML = available.map(j => {
+    const col = colorFor(j.nom);
+    const avatar = j.photo ? `<div class="pp-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center"></div>` : `<div class="pp-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+    return `<div class="bench-card" draggable="true" data-pid="${j.id}">${avatar}<div class="pp-name">${j.nom}</div></div>`;
+  }).join('');
+  bench.querySelectorAll('.bench-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragData = { pid: card.dataset.pid, fromTeam: null, fromIdx: null };
+    });
+  });
+}
+
+function handleDrop(toTeam, toIdx) {
+  if (!dragData) return;
+  const teamKey = 'team' + toTeam;
+  const existingId = slots[teamKey][toIdx];
+
+  // Si vient du banc
+  if (dragData.fromTeam === null) {
+    slots[teamKey][toIdx] = dragData.pid;
+    // Si il y avait deja qq un, on le remet au banc (juste en l enlevant)
+    // (il reapparaitra automatiquement via renderBench)
+  } else {
+    // Swap entre 2 slots
+    const fromKey = 'team' + dragData.fromTeam;
+    slots[fromKey][dragData.fromIdx] = existingId; // peut etre null
+    slots[teamKey][toIdx] = dragData.pid;
+  }
+  dragData = null;
+  renderSlots();
+  renderBench();
+}
+
+function clearTeams() {
+  slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
+  renderSlots();
+  renderBench();
+}
+
+function randomFillTeams() {
+  clearTeams();
+  const pool = shuffle(joueurs.slice());
+  pool.slice(0, 5).forEach((p, i) => slots.team0[i] = p.id);
+  pool.slice(5, 10).forEach((p, i) => slots.team1[i] = p.id);
+  renderSlots();
+  renderBench();
+}
+
+async function savePronoFromTeams() {
+  const team0Players = slots.team0.filter(id => id);
+  const team1Players = slots.team1.filter(id => id);
+  if (!team0Players.length || !team1Players.length) { toast('Place des joueurs dans les deux équipes !'); return; }
+  const prono = {
+    id: uid(),
+    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    teams: [
+      { nom: TEAM_NAMES[0], joueurs: team0Players },
+      { nom: TEAM_NAMES[1], joueurs: team1Players },
+    ],
+    format: '2',
+  };
+  if (sb) await sb.from('pronostiques').upsert({ id: prono.id, date: prono.date, teams: prono.teams, format: prono.format });
+  pronos.unshift(prono);
+  renderPronos();
+  toast('Pronostique enregistré ✓');
+  document.getElementById('pronos').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Init au chargement
+setTimeout(() => { if (document.getElementById('matchPitchCanvas')) initMatchPitch(); }, 100);
+window.addEventListener('resize', () => { if (document.getElementById('matchPitchCanvas')) drawMatchField(); });
