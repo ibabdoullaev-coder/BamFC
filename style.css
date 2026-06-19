@@ -662,3 +662,14 @@ td.empty-state { padding: 2rem; }
 
 .match-rename { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 0 6px; margin-left: 4px; }
 .match-rename:hover { color: var(--accent); }
+
+/* IDENTITY BADGE */
+.identity-badge {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  background: var(--bg-card2); border: 0.5px solid var(--border);
+  color: var(--text); border-radius: 99px;
+  padding: 4px 12px; font-size: 12px; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.identity-badge:hover { border-color: var(--accent); color: var(--accent); }
+.navbar { position: fixed; }

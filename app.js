@@ -1,3 +1,64 @@
+// ─── IDENTITE JOUEUR ─────────────────────────────────────
+function getMyPlayerId() { return localStorage.getItem('bamfc_my_player_id'); }
+function setMyPlayerId(id) { localStorage.setItem('bamfc_my_player_id', id); applyIdentityUI(); }
+function clearMyPlayerId() { localStorage.removeItem('bamfc_my_player_id'); applyIdentityUI(); }
+
+function applyIdentityUI() {
+  const myId = getMyPlayerId();
+  const j = myId ? joueurs.find(x => x.id === myId) : null;
+  const badge = document.getElementById('identityBadge');
+  if (badge) {
+    if (j) badge.innerHTML = '👤 ' + j.nom + ' <span style="opacity:0.6;font-size:10px">×</span>';
+    else badge.innerHTML = '👤 Qui es-tu ?';
+    badge.style.display = '';
+  }
+}
+
+function openIdentityModal() {
+  const myId = getMyPlayerId();
+  if (myId) {
+    if (confirm('Se deconnecter de cette identite ?')) clearMyPlayerId();
+    return;
+  }
+  const html = joueurs.map(j => {
+    const col = colorFor(j.nom);
+    const avatar = j.photo ? `<div class="js-avatar" style="background-image:url('${j.photo}')"></div>` : `<div class="js-avatar" style="background:${col.bg};color:${col.text}">${initials(j.nom)}</div>`;
+    return `<div class="js-row" onclick="loginAsJoueur('${j.id}')">
+      ${avatar}<span>${j.nom}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('identityList').innerHTML = html;
+  openModal('modalIdentity');
+}
+
+async function loginAsJoueur(jid) {
+  const j = joueurs.find(x => x.id === jid);
+  if (!j) return;
+  if (!j.pin) {
+    // pas de PIN: demande au coach/admin de le creer
+    if (isCoach) {
+      const newPin = prompt(`Crée un PIN pour ${j.nom} (4 chiffres, partage le lui)`);
+      if (!newPin || !/^\d{4}$/.test(newPin)) { toast('PIN invalide (4 chiffres)'); return; }
+      j.pin = newPin;
+      if (sb) await sb.from('joueurs').update({ pin: newPin }).eq('id', jid);
+      setMyPlayerId(jid);
+      closeModal('modalIdentity');
+      toast('Connecte en tant que ' + j.nom);
+    } else {
+      toast('Demande a Ibrahim de te creer un PIN');
+    }
+    return;
+  }
+  const entered = prompt('PIN de ' + j.nom);
+  if (entered === j.pin) {
+    setMyPlayerId(jid);
+    closeModal('modalIdentity');
+    toast('Connecte en tant que ' + j.nom);
+  } else {
+    toast('PIN incorrect');
+  }
+}
+
 // ─── ADMIN MODE ──────────────────────────────────────────
 const ADMIN_PASS = 'bam2026';
 const COACH_PASS = 'bamcoach';
@@ -53,7 +114,7 @@ async function syncFromCloud() {
       sb.from('historique').select('*').order('created_at', { ascending: false })
     ]);
     if (j) {
-      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null }));
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null }));
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
@@ -72,7 +133,7 @@ async function syncFromCloud() {
 
 async function pushJoueur(j) {
   if (!sb) return;
-  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo });
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null });
 }
 async function deleteJoueurCloud(id) {
   if (!sb) return;
@@ -767,6 +828,7 @@ function resetPositions() { playerPositions = {}; renderTerrain(); }
 window.addEventListener('resize', () => { if (currentTeams.length) renderTerrain(); });
 
 // ─── INIT ─────────────────────────────────────────────────
+setTimeout(applyIdentityUI, 100);
 applyAdminMode();
 renderJoueurs();
 renderHistorique();
@@ -1146,7 +1208,9 @@ function renderPronoTerrain(el, p) {
       const avatarHtml = j.photo
         ? '<div class="pp-avatar" style="background-image:url(\'' + j.photo + '\');background-size:cover;background-position:center"></div>'
         : '<div class="pp-avatar" style="background:' + col.bg + ';color:' + col.text + '">' + initials(j.nom) + '</div>';
-      el2.innerHTML = '<div class="pp-card" style="border-color:' + acc + '">' + avatarHtml + '<div class="pp-name">' + j.nom + '</div></div>';
+      const predNum = ((p.teams[ti].predictions || {})[jid] || 0);
+      const badge = predNum > 0 ? '<span class="pp-badge" style="background:' + acc + '">⚽ ' + predNum + '</span>' : '';
+      el2.innerHTML = '<div class="pp-card' + (predNum > 0 ? ' has-goals' : '') + '" style="border-color:' + acc + '">' + badge + avatarHtml + '<div class="pp-name">' + j.nom + '</div></div>';
       container.appendChild(el2);
     });
   });
@@ -1342,6 +1406,11 @@ async function renameMatch(id) {
 }
 
 async function changePred(pronoId, teamIdx, joueurId, delta) {
+  const myId = getMyPlayerId();
+  if (!isAdmin && !isCoach && myId !== joueurId) {
+    toast('Seul ce joueur peut pronostiquer ses buts');
+    return;
+  }
   const p = pronos.find(pp => pp.id === pronoId);
   if (!p) return;
   if (!p.teams[teamIdx].predictions) p.teams[teamIdx].predictions = {};

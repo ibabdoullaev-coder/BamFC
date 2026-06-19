@@ -14,6 +14,7 @@
 <!-- NAV -->
 <nav class="navbar">
   <span class="nav-logo">Bam FC</span>
+  <button class="identity-badge" id="identityBadge" onclick="openIdentityModal()" style="display:none">👤</button>
   <div class="nav-links">
     <a href="#joueurs" class="nav-link">Joueurs</a>
     <a href="#match" class="nav-link">Match</a>
@@ -208,6 +209,20 @@
     <div class="modal-body">
       <div id="joueurSelList" style="max-height:50vh;overflow-y:auto"></div>
       <button class="btn-primary full" onclick="confirmJoueurSel()">🎲 Tirer au sort</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IDENTITY -->
+<div class="modal-overlay" id="modalIdentity" onclick="closeModalIfBg(event,'modalIdentity')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Qui es-tu ?</span>
+      <button class="modal-close" onclick="closeModal('modalIdentity')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);font-size:12px;margin-bottom:10px">Choisis qui tu es pour pronostiquer tes buts et modifier ta photo.</p>
+      <div id="identityList" style="max-height:50vh;overflow-y:auto"></div>
     </div>
   </div>
 </div>
