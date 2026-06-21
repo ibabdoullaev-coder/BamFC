@@ -152,7 +152,7 @@ async function syncFromCloud() {
       });
       localStorage.setItem('bamfc_historique', JSON.stringify(historique));
     }
-    renderJoueurs(); renderTierList();
+    renderJoueurs();
     renderHistorique();
     renderStats(); renderAffinites();
     renderBench();
@@ -472,7 +472,7 @@ function ajouterJoueur() {
   closeModal('modalJoueur');
   document.getElementById('inputNom').value = '';
   document.getElementById('inputPoste').value = '';
-  renderJoueurs(); renderTierList();
+  renderJoueurs();
   updateHero();
   toast('Joueur ajouté ✓');
 }
@@ -481,7 +481,7 @@ function supprimerJoueur(id) {
   joueurs = joueurs.filter(j => j.id !== id);
   save('bamfc_joueurs', joueurs);
   deleteJoueurCloud(id);
-  renderJoueurs(); renderTierList();
+  renderJoueurs();
   updateHero();
 }
 
@@ -1129,7 +1129,7 @@ window.addEventListener('resize', () => { if (currentTeams.length) renderTerrain
 // ─── INIT ─────────────────────────────────────────────────
 setTimeout(applyIdentityUI, 100);
 applyAdminMode();
-renderJoueurs(); renderTierList();
+renderJoueurs();
 renderHistorique();
 renderStats(); renderAffinites();
 updateHero();
@@ -1409,7 +1409,7 @@ async function enregistrerImportComme() {
   save('bamfc_historique', historique);
   pushMatch(match);
   joueurs.forEach(jj => pushJoueur(jj));
-  renderJoueurs(); renderTierList();
+  renderJoueurs();
   renderHistorique();
   renderStats(); renderAffinites();
   updateHero();
@@ -1797,7 +1797,7 @@ function openPhotoModal(playerId) {
         j.photo = canvas.toDataURL('image/jpeg', 0.85);
         save('bamfc_joueurs', joueurs);
         pushJoueur(j);
-        renderJoueurs(); renderTierList();
+        renderJoueurs();
         toast('Photo ajoutee');
       };
       img.src = ev.target.result;
@@ -1992,7 +1992,7 @@ async function confirmMerge(targetId) {
 
   closeModal('modalMerge');
   closeModal('modalProfile');
-  renderJoueurs(); renderTierList();
+  renderJoueurs();
   renderHistorique();
   renderStats(); renderAffinites();
   renderPronos();
@@ -2168,7 +2168,7 @@ async function saveFutStats(playerId) {
   await pushJoueur(j);
   closeModal('modalFutEditor');
   closeModal('modalProfile');
-  renderJoueurs(); renderTierList();
+  renderJoueurs();
   toast('Stats FUT sauvegardees');
   openPlayerProfile(playerId);
 }
@@ -2506,127 +2506,4 @@ document.addEventListener('click', function(e) {
   document.querySelectorAll('[data-affinite-sort]').forEach(b => b.classList.toggle('active', b === btn));
   renderAffinites();
 });
-
-/* === TIER LIST === */
-const TIERS = [
-  { key: 'goat',      label: 'GOAT',          color: '#FFD700' },
-  { key: 'monstre',   label: 'Monstre',       color: '#FF4500' },
-  { key: 'tres-bon',  label: 'Très bon',      color: '#9333ea' },
-  { key: 'stable',    label: 'Joueur stable', color: '#3b82f6' },
-  { key: 'espoir',    label: 'Espoir',        color: '#4AFF6A' },
-  { key: 'fakalaye',  label: 'Fakalaye',      color: '#FF8800' },
-  { key: 'ligaments', label: 'Ligaments',     color: '#888' }
-];
-
-var tierDragId = null;
-
-function tierCanEdit() {
-  return document.documentElement.classList.contains('is-admin')
-      || document.documentElement.classList.contains('is-coach');
-}
-
-function tierTextColor(bg) {
-  if (bg === '#FFD700' || bg === '#4AFF6A') return '#000';
-  return '#fff';
-}
-
-function tierPlayerCard(j, editable) {
-  const photo = j.photo
-    ? '<img src="' + j.photo + '" alt="">'
-    : '<div class="tp-letter">' + ((j.nom || '?')[0]) + '</div>';
-  return ''
-    + '<div class="tier-player" data-player-id="' + j.id + '"'
-    + (editable ? ' draggable="true"' : '')
-    + ' onclick="openPlayerProfile(\'' + j.id + '\')">'
-    +   '<div class="tp-avatar">' + photo + '</div>'
-    +   '<div class="tp-name">' + (j.nom || '?') + '</div>'
-    + '</div>';
-}
-
-function renderTierList() {
-  const container = document.getElementById('tierListContainer');
-  const benchEl = document.getElementById('tierListBench');
-  if (!container || !benchEl) return;
-  if (typeof joueurs === 'undefined' || !Array.isArray(joueurs)) return;
-
-  const editable = tierCanEdit();
-  const byTier = {};
-  const bench = [];
-  for (const j of joueurs) {
-    if (j.tier && TIERS.some(t => t.key === j.tier)) {
-      if (!byTier[j.tier]) byTier[j.tier] = [];
-      byTier[j.tier].push(j);
-    } else {
-      bench.push(j);
-    }
-  }
-
-  container.innerHTML = TIERS.map(t => {
-    const players = byTier[t.key] || [];
-    const cards = players.map(j => tierPlayerCard(j, editable)).join('');
-    return ''
-      + '<div class="tier-row" data-tier-key="' + t.key + '">'
-      +   '<div class="tier-label" style="background:' + t.color + ';color:' + tierTextColor(t.color) + '">' + t.label + '</div>'
-      +   '<div class="tier-players" data-tier-drop="' + t.key + '">' + cards + '</div>'
-      + '</div>';
-  }).join('');
-
-  if (editable) {
-    benchEl.style.display = '';
-    benchEl.innerHTML = ''
-      + '<div class="tier-bench-label">Non classés (' + bench.length + ')</div>'
-      + '<div class="tier-players" data-tier-drop="">'
-      +   bench.map(j => tierPlayerCard(j, editable)).join('')
-      + '</div>';
-    setupTierDragDrop();
-  } else {
-    benchEl.style.display = 'none';
-    benchEl.innerHTML = '';
-  }
-}
-
-function setupTierDragDrop() {
-  document.querySelectorAll('#tierlist .tier-player[draggable="true"]').forEach(el => {
-    el.addEventListener('dragstart', (e) => {
-      tierDragId = el.getAttribute('data-player-id');
-      el.classList.add('dragging');
-      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-    });
-    el.addEventListener('dragend', () => {
-      el.classList.remove('dragging');
-      tierDragId = null;
-    });
-  });
-  document.querySelectorAll('#tierlist [data-tier-drop]').forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      zone.classList.add('drag-over');
-    });
-    zone.addEventListener('dragleave', () => {
-      zone.classList.remove('drag-over');
-    });
-    zone.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      if (!tierDragId) return;
-      const newTier = zone.getAttribute('data-tier-drop') || null;
-      const j = (typeof joueurs !== 'undefined') ? joueurs.find(jj => jj.id === tierDragId) : null;
-      if (!j) return;
-      if ((j.tier || null) === (newTier || null)) return;
-      j.tier = newTier;
-      renderTierList();
-      try {
-        if (typeof pushJoueur === 'function') {
-          await pushJoueur(j);
-        } else if (typeof sb !== 'undefined') {
-          await sb.from('joueurs').update({ tier: newTier }).eq('id', j.id);
-        }
-        if (typeof save === 'function') save('bamfc_joueurs', joueurs);
-      } catch (err) {
-        console.error('Erreur push tier:', err);
-      }
-    });
-  });
-}
 
