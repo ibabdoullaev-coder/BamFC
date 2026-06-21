@@ -23,6 +23,7 @@
     <a href="#terrain" class="nav-link">Terrain</a>
     <a href="#historique" class="nav-link">Historique</a>
     <a href="#stats" class="nav-link">Stats</a>
+    <a href="#affinites" class="nav-link">Affinités</a>
   </div>
 </nav>
 
@@ -142,6 +143,18 @@
 </section>
 
 <!-- STATS -->
+<section class="section" id="affinites">
+  <h2 class="section-title">Affinités</h2>
+  <p class="hint">Top binômes du Bam — min 3 matchs joués ensemble</p>
+  <div class="affinites-controls">
+    <button class="pill active" data-affinite-sort="winPct">Meilleur %</button>
+    <button class="pill" data-affinite-sort="wins">Plus de victoires</button>
+    <button class="pill" data-affinite-sort="matches">Plus de matchs ensemble</button>
+    <button class="pill" data-affinite-sort="goals">Plus de buts combinés</button>
+  </div>
+  <div id="affinitesList" class="affinites-list"></div>
+</section>
+
 <section class="section" id="stats">
   <button class="stats-toggle" onclick="toggleStatsPanel()" title="Replier le classement">⟩</button>
   <div class="section-header">

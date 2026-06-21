@@ -153,7 +153,7 @@ async function syncFromCloud() {
     }
     renderJoueurs();
     renderHistorique();
-    renderStats();
+    renderStats(); renderAffinites();
     renderBench();
     updateHero();
     console.log('Synced from cloud');
@@ -727,7 +727,7 @@ function enregistrerMatch() {
   save('bamfc_historique', historique);
   pushMatch(match);
   renderHistorique();
-  renderStats();
+  renderStats(); renderAffinites();
   updateHero();
   document.getElementById('teamsWrap').style.display = 'none';
   toast('Match enregistré 🎉');
@@ -886,7 +886,7 @@ function clearHistorique() {
   save('bamfc_historique', historique);
   clearHistoriqueCloud();
   renderHistorique();
-  renderStats();
+  renderStats(); renderAffinites();
   updateHero();
 }
 
@@ -1130,7 +1130,7 @@ setTimeout(applyIdentityUI, 100);
 applyAdminMode();
 renderJoueurs();
 renderHistorique();
-renderStats();
+renderStats(); renderAffinites();
 updateHero();
 syncFromCloud();
 
@@ -1410,7 +1410,7 @@ async function enregistrerImportComme() {
   joueurs.forEach(jj => pushJoueur(jj));
   renderJoueurs();
   renderHistorique();
-  renderStats();
+  renderStats(); renderAffinites();
   updateHero();
   toast('Match ajoute a l historique ✓');
   document.getElementById('historique').scrollIntoView({ behavior: 'smooth' });
@@ -1420,7 +1420,7 @@ updateTokenStatus();
 
 function setStatsSort(mode) {
   statsSortMode = mode;
-  renderStats();
+  renderStats(); renderAffinites();
 }
 
 
@@ -1762,7 +1762,7 @@ async function deleteMatch(id) {
   save('bamfc_historique', historique);
   if (sb) await sb.from('historique').delete().eq('id', id);
   renderHistorique();
-  renderStats();
+  renderStats(); renderAffinites();
   updateHero();
   toast('Match supprime');
 }
@@ -1993,7 +1993,7 @@ async function confirmMerge(targetId) {
   closeModal('modalProfile');
   renderJoueurs();
   renderHistorique();
-  renderStats();
+  renderStats(); renderAffinites();
   renderPronos();
   updateHero();
   toast(sourceIds.length + ' joueur(s) fusionne(s) dans ' + target.nom);
@@ -2400,3 +2400,109 @@ if (localStorage.getItem('bamfc_stats_collapsed') === '1') {
     if (s) s.classList.add('collapsed');
   }, 100);
 }
+
+/* === AFFINITÉS === */
+let affinitesSort = 'winPct';
+
+function computeAffinities() {
+  const pairs = {};
+  if (typeof historique === 'undefined' || !Array.isArray(historique)) return [];
+  for (const m of historique) {
+    if (!m || !m.teams || m.teams.length < 2) continue;
+    const tA = m.teams[0], tB = m.teams[1];
+    if (!tA || !tB) continue;
+    const jA = (tA.joueurs || []).filter(Boolean);
+    const jB = (tB.joueurs || []).filter(Boolean);
+    const sA = tA.score || 0, sB = tB.score || 0;
+    const buts = m.buts || {};
+    const teamsList = [
+      { players: jA, won: sA > sB, draw: sA === sB },
+      { players: jB, won: sB > sA, draw: sA === sB }
+    ];
+    for (const t of teamsList) {
+      for (let i = 0; i < t.players.length; i++) {
+        for (let j = i + 1; j < t.players.length; j++) {
+          const a = t.players[i], b = t.players[j];
+          const ids = [a, b].sort();
+          const key = ids[0] + '|' + ids[1];
+          if (!pairs[key]) pairs[key] = { ids: ids, matches: 0, wins: 0, draws: 0, goals: 0 };
+          pairs[key].matches++;
+          if (t.won) pairs[key].wins++;
+          if (t.draw) pairs[key].draws++;
+          pairs[key].goals += (buts[a] || 0) + (buts[b] || 0);
+        }
+      }
+    }
+  }
+  return Object.values(pairs)
+    .filter(p => p.matches >= 3)
+    .map(p => Object.assign(p, {
+      winPct: p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0
+    }));
+}
+
+function renderAffinites() {
+  const el = document.getElementById('affinitesList');
+  if (!el) return;
+  const arr = computeAffinities();
+  arr.sort((a, b) => {
+    if (affinitesSort === 'winPct') {
+      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      return b.matches - a.matches;
+    }
+    if (affinitesSort === 'wins') {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.matches - a.matches;
+    }
+    if (affinitesSort === 'matches') {
+      if (b.matches !== a.matches) return b.matches - a.matches;
+      return b.wins - a.wins;
+    }
+    if (affinitesSort === 'goals') {
+      if (b.goals !== a.goals) return b.goals - a.goals;
+      return b.matches - a.matches;
+    }
+    return 0;
+  });
+  if (!arr.length) {
+    el.innerHTML = '<div class="hint">Pas encore assez de matchs pour calculer les affinités (min 3 matchs ensemble).</div>';
+    return;
+  }
+  const findJ = (id) => (typeof joueurs !== 'undefined' ? joueurs.find(j => j.id === id) : null);
+  el.innerHTML = arr.slice(0, 30).map((p, i) => {
+    const j1 = findJ(p.ids[0]);
+    const j2 = findJ(p.ids[1]);
+    if (!j1 || !j2) return '';
+    const n1 = (j1.nom || '?'), n2 = (j2.nom || '?');
+    const ph1 = j1.photo ? '<img src="' + j1.photo + '" alt="">' : '<div class="ph-letter">' + n1[0] + '</div>';
+    const ph2 = j2.photo ? '<img src="' + j2.photo + '" alt="">' : '<div class="ph-letter">' + n2[0] + '</div>';
+    return ''
+      + '<div class="affinite-row" data-rank="' + (i + 1) + '">'
+      +   '<div class="affinite-rank">#' + (i + 1) + '</div>'
+      +   '<div class="affinite-pair">'
+      +     '<div class="affinite-avatar" onclick="openPlayerProfile(\'' + p.ids[0] + '\')">' + ph1 + '</div>'
+      +     '<div class="affinite-names">'
+      +       '<span onclick="openPlayerProfile(\'' + p.ids[0] + '\')">' + n1 + '</span>'
+      +       '<span class="and">+</span>'
+      +       '<span onclick="openPlayerProfile(\'' + p.ids[1] + '\')">' + n2 + '</span>'
+      +     '</div>'
+      +     '<div class="affinite-avatar" onclick="openPlayerProfile(\'' + p.ids[1] + '\')">' + ph2 + '</div>'
+      +   '</div>'
+      +   '<div class="affinite-stats">'
+      +     '<div class="aff-stat"><div class="aff-val">' + p.matches + '</div><div class="aff-lbl">matchs</div></div>'
+      +     '<div class="aff-stat highlight"><div class="aff-val">' + p.winPct + '%</div><div class="aff-lbl">victoires</div></div>'
+      +     '<div class="aff-stat"><div class="aff-val">' + p.wins + '</div><div class="aff-lbl">gagn&eacute;s</div></div>'
+      +     '<div class="aff-stat"><div class="aff-val">' + p.goals + '</div><div class="aff-lbl">buts cumul.</div></div>'
+      +   '</div>'
+      + '</div>';
+  }).join('');
+}
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest && e.target.closest('[data-affinite-sort]');
+  if (!btn) return;
+  affinitesSort = btn.getAttribute('data-affinite-sort');
+  document.querySelectorAll('[data-affinite-sort]').forEach(b => b.classList.toggle('active', b === btn));
+  renderAffinites();
+});
+
