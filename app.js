@@ -139,7 +139,7 @@ async function syncFromCloud() {
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
-      historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null, nom: r.nom || null }));
+      historique = h.map(r => ({ id: r.id, date: r.date, teams: r.teams, buts: r.buts, videos: r.videos || [], source: r.source || null, nom: r.nom || null, fullMatchUrl: r.full_match_url || null, lefiveMatchUrl: r.lefive_url || null }));
       // Tri par date du match (chrono inverse: plus recent en haut)
       historique.sort((a, b) => {
         const da = parseDateFR(a.nom || a.date);
@@ -172,7 +172,7 @@ async function deleteJoueurCloud(id) {
 }
 async function pushMatch(m) {
   if (!sb) return;
-  await sb.from('historique').upsert({ id: m.id, date: m.date, teams: m.teams, buts: m.buts, videos: m.videos || [], source: m.source || null, nom: m.nom || null });
+  await sb.from('historique').upsert({ id: m.id, date: m.date, teams: m.teams, buts: m.buts, videos: m.videos || [], source: m.source || null, nom: m.nom || null, full_match_url: m.fullMatchUrl || null, lefive_url: m.lefiveMatchUrl || null });
 }
 async function deleteMatchCloud(id) {
   if (!sb) return;
@@ -715,6 +715,7 @@ function enregistrerMatch() {
     id: uid(),
     date: matchDate,
     nom: matchDate,
+    lefiveMatchUrl: d.lefiveVideoUrl || null,
     teams: currentTeams.map((team, ti) => ({
       nom: TEAM_NAMES[ti],
       joueurs: team.map(j => j.id),
@@ -751,6 +752,8 @@ function renderHistorique() {
         ${isAdmin ? `<button class="match-delete" data-mid="${m.id}">×</button>` : ''}
         <span class="match-date">${m.nom || m.date}</span>
         ${isAdmin ? `<button class="match-rename" data-mid="${m.id}" title="Renommer">✎</button>` : ''}
+        ${m.fullMatchUrl ? `<button class="match-full" data-url="${m.fullMatchUrl}" data-nom="${(m.nom || m.date).replace(/'/g, '&apos;')}" title="Voir le match complet">📹</button>` : ''}
+        ${isAdmin && !m.fullMatchUrl ? `<button class="match-archive" data-mid="${m.id}" title="Archiver le match complet">📥</button>` : ''}
         <div class="match-teams">
           ${m.teams.map((t, i) => {
             const isWin = !isNul && t.score === maxScore;
@@ -770,6 +773,12 @@ function renderHistorique() {
   });
   el.querySelectorAll('.match-rename').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); renameMatch(btn.dataset.mid); };
+  });
+  el.querySelectorAll('.match-full').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); watchFullMatch(btn.dataset.url, btn.dataset.nom); };
+  });
+  el.querySelectorAll('.match-archive').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); archiveFullMatch(btn.dataset.mid); };
   });
 }
 
@@ -1381,6 +1390,7 @@ async function enregistrerImportComme() {
     id: uid(),
     date: matchDate,
     nom: matchDate,
+    lefiveMatchUrl: d.lefiveVideoUrl || null,
     teams: teams.map(t => ({
       nom: t.name,
       joueurs: t.joueurs.map(p => findJoueurByName(p.name)?.id).filter(Boolean),
@@ -2156,4 +2166,115 @@ async function saveFutStats(playerId) {
   renderJoueurs();
   toast('Stats FUT sauvegardees');
   openPlayerProfile(playerId);
+}
+
+// ─── ARCHIVAGE MATCH COMPLET ──────────────────────────────
+async function archiveFullMatch(matchId) {
+  if (!isAdmin) { toast('Admin uniquement'); return; }
+  const m = historique.find(mm => mm.id === matchId);
+  if (!m) return;
+  if (m.fullMatchUrl) {
+    if (!confirm('Match deja archive. Re-archiver ?')) return;
+  }
+
+  // Demander URL lefive
+  let lefiveUrl = m.lefiveMatchUrl;
+  if (!lefiveUrl) {
+    lefiveUrl = prompt('URL lefive du match complet (champ videoUrl depuis API):');
+    if (!lefiveUrl) return;
+  }
+
+  const key = 'fullmatches/' + matchId + '.mp4';
+
+  // Verifier si deja archive
+  toast('Verification...');
+  const checkResp = await fetch('/api/archive-fullmatch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'check', key }),
+  });
+  const checkData = await checkResp.json();
+  if (checkData.exists) {
+    m.fullMatchUrl = checkData.url;
+    save('bamfc_historique', historique);
+    await pushMatch(m);
+    renderHistorique();
+    toast('Deja archive: ' + checkData.url);
+    return;
+  }
+
+  // 1. Telecharger depuis lefive en blob
+  toast('Telechargement depuis lefive...');
+  const progressEl = document.createElement('div');
+  progressEl.className = 'upload-progress';
+  progressEl.innerHTML = '<div class="up-bar"><div class="up-fill" id="upFill"></div></div><div id="upStatus">0%</div>';
+  document.body.appendChild(progressEl);
+
+  try {
+    const videoResp = await fetch(lefiveUrl);
+    if (!videoResp.ok) throw new Error('Echec download: ' + videoResp.status);
+    const blob = await videoResp.blob();
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+    document.getElementById('upStatus').textContent = 'Telecharge: ' + sizeMB + ' MB, upload R2...';
+
+    // 2. Multipart upload vers R2
+    const initResp = await fetch('/api/archive-fullmatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'init', key }),
+    });
+    const { uploadId } = await initResp.json();
+
+    const partSize = 10 * 1024 * 1024; // 10 MB par partie
+    const totalParts = Math.ceil(blob.size / partSize);
+    const parts = [];
+
+    for (let i = 0; i < totalParts; i++) {
+      const start = i * partSize;
+      const end = Math.min(start + partSize, blob.size);
+      const chunk = blob.slice(start, end);
+
+      const signResp = await fetch('/api/archive-fullmatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sign-part', key, uploadId, partNumber: i + 1 }),
+      });
+      const { url } = await signResp.json();
+
+      const upResp = await fetch(url, { method: 'PUT', body: chunk });
+      if (!upResp.ok) throw new Error('Echec partie ' + (i+1));
+      const etag = upResp.headers.get('etag');
+      parts.push({ PartNumber: i + 1, ETag: etag });
+
+      const pct = Math.round(((i + 1) / totalParts) * 100);
+      document.getElementById('upFill').style.width = pct + '%';
+      document.getElementById('upStatus').textContent = 'Upload R2: ' + pct + '% (' + (i+1) + '/' + totalParts + ')';
+    }
+
+    // 3. Finaliser
+    const compResp = await fetch('/api/archive-fullmatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'complete', key, uploadId, parts }),
+    });
+    const { url: finalUrl } = await compResp.json();
+
+    m.fullMatchUrl = finalUrl;
+    save('bamfc_historique', historique);
+    await pushMatch(m);
+
+    progressEl.remove();
+    renderHistorique();
+    toast('Match archive ✓');
+  } catch (err) {
+    console.error(err);
+    progressEl.remove();
+    toast('Erreur: ' + err.message);
+  }
+}
+
+function watchFullMatch(url, nom) {
+  document.getElementById('videoTitle').textContent = nom + ' - Match complet';
+  document.getElementById('videoPlayer').src = url;
+  openModal('modalVideo');
 }

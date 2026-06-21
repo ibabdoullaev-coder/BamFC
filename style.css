@@ -893,3 +893,19 @@ td.empty-state { padding: 2rem; }
 .fut-stat-label { flex: 1; text-transform: uppercase; }
 .fut-stat-value { width: 70px; }
 .fut-stat-row .btn-ghost { padding: 8px 12px; }
+
+/* UPLOAD PROGRESS */
+.upload-progress {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-card); border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg); padding: 16px 24px;
+  min-width: 320px; z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.up-bar { height: 8px; background: var(--bg-card2); border-radius: 4px; overflow: hidden; }
+.up-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+#upStatus { margin-top: 8px; font-size: 12px; color: var(--text-muted); text-align: center; }
+
+.match-full, .match-archive { background: none; border: none; cursor: pointer; padding: 0 6px; font-size: 14px; }
+.match-full:hover { color: var(--accent); }
+.match-archive:hover { color: #f0a040; }

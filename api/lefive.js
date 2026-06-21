@@ -97,6 +97,7 @@ module.exports = async (req, res) => {
       buts,
       score,
       matchDate: matchInfo?.startingDate || null,
+      lefiveVideoUrl: matchInfo?.videoUrl || null,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
