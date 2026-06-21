@@ -2177,84 +2177,85 @@ async function archiveFullMatch(matchId) {
     if (!confirm('Match deja archive. Re-archiver ?')) return;
   }
 
-  // Demander URL lefive
   let lefiveUrl = m.lefiveMatchUrl;
   if (!lefiveUrl) {
-    lefiveUrl = prompt('URL lefive du match complet (champ videoUrl depuis API):');
+    lefiveUrl = prompt('URL lefive du match complet:');
     if (!lefiveUrl) return;
   }
 
   const key = 'fullmatches/' + matchId + '.mp4';
-
-  // Verifier si deja archive
-  toast('Verification...');
-  const checkResp = await fetch('/api/archive-fullmatch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'check', key }),
-  });
-  const checkData = await checkResp.json();
-  if (checkData.exists) {
-    m.fullMatchUrl = checkData.url;
-    save('bamfc_historique', historique);
-    await pushMatch(m);
-    renderHistorique();
-    toast('Deja archive: ' + checkData.url);
-    return;
-  }
-
-  // 1. Telecharger depuis lefive en blob
-  toast('Telechargement depuis lefive...');
   const progressEl = document.createElement('div');
   progressEl.className = 'upload-progress';
-  progressEl.innerHTML = '<div class="up-bar"><div class="up-fill" id="upFill"></div></div><div id="upStatus">0%</div>';
+  progressEl.innerHTML = '<div class="up-bar"><div class="up-fill" id="upFill"></div></div><div id="upStatus">Verification...</div>';
   document.body.appendChild(progressEl);
 
   try {
-    const videoResp = await fetch(lefiveUrl);
-    if (!videoResp.ok) throw new Error('Echec download: ' + videoResp.status);
-    const blob = await videoResp.blob();
-    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
-    document.getElementById('upStatus').textContent = 'Telecharge: ' + sizeMB + ' MB, upload R2...';
+    // Verifier si deja archive
+    const checkResp = await fetch('/api/archive-fullmatch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check', key }),
+    });
+    const checkData = await checkResp.json();
+    if (checkData.exists) {
+      m.fullMatchUrl = checkData.url;
+      save('bamfc_historique', historique);
+      await pushMatch(m);
+      renderHistorique();
+      progressEl.remove();
+      toast('Deja archive');
+      return;
+    }
 
-    // 2. Multipart upload vers R2
+    // Recuperer la taille du fichier
+    document.getElementById('upStatus').textContent = 'Recuperation infos video...';
+    const sizeResp = await fetch('/api/archive-fullmatch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getsize', videoUrl: lefiveUrl }),
+    });
+    const { size } = await sizeResp.json();
+    if (!size) throw new Error('Impossible de recuperer la taille');
+    const sizeMB = (size / 1024 / 1024).toFixed(1);
+    document.getElementById('upStatus').textContent = 'Taille: ' + sizeMB + ' MB. Initialisation...';
+
+    // Initialiser multipart upload
     const initResp = await fetch('/api/archive-fullmatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'init', key }),
     });
     const { uploadId } = await initResp.json();
+    if (!uploadId) throw new Error('Echec init multipart');
 
-    const partSize = 10 * 1024 * 1024; // 10 MB par partie
-    const totalParts = Math.ceil(blob.size / partSize);
+    // Upload par parties de 10 MB
+    const partSize = 10 * 1024 * 1024;
+    const totalParts = Math.ceil(size / partSize);
     const parts = [];
 
     for (let i = 0; i < totalParts; i++) {
-      const start = i * partSize;
-      const end = Math.min(start + partSize, blob.size);
-      const chunk = blob.slice(start, end);
+      const rangeStart = i * partSize;
+      const rangeEnd = Math.min(rangeStart + partSize - 1, size - 1);
 
-      const signResp = await fetch('/api/archive-fullmatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sign-part', key, uploadId, partNumber: i + 1 }),
+      // Server fait download range + upload part directement
+      const partResp = await fetch('/api/archive-fullmatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upload-part-from-url',
+          videoUrl: lefiveUrl, key, uploadId,
+          partNumber: i + 1, rangeStart, rangeEnd,
+        }),
       });
-      const { url } = await signResp.json();
-
-      const upResp = await fetch(url, { method: 'PUT', body: chunk });
-      if (!upResp.ok) throw new Error('Echec partie ' + (i+1));
-      const etag = upResp.headers.get('etag');
-      parts.push({ PartNumber: i + 1, ETag: etag });
+      const partData = await partResp.json();
+      if (!partData.etag) throw new Error('Partie ' + (i+1) + ': ' + (partData.error || 'erreur'));
+      parts.push({ PartNumber: i + 1, ETag: partData.etag });
 
       const pct = Math.round(((i + 1) / totalParts) * 100);
       document.getElementById('upFill').style.width = pct + '%';
-      document.getElementById('upStatus').textContent = 'Upload R2: ' + pct + '% (' + (i+1) + '/' + totalParts + ')';
+      document.getElementById('upStatus').textContent = 'Upload: ' + pct + '% (' + (i+1) + '/' + totalParts + ')';
     }
 
-    // 3. Finaliser
+    // Finaliser
+    document.getElementById('upStatus').textContent = 'Finalisation...';
     const compResp = await fetch('/api/archive-fullmatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'complete', key, uploadId, parts }),
     });
     const { url: finalUrl } = await compResp.json();
