@@ -752,6 +752,7 @@ function renderHistorique() {
         ${isAdmin ? `<button class="match-delete" data-mid="${m.id}">×</button>` : ''}
         <span class="match-date">${m.nom || m.date}</span>
         ${isAdmin ? `<button class="match-rename" data-mid="${m.id}" title="Renommer">✎</button>` : ''}
+        ${(m.videos || []).length ? `<button class="match-summary" data-mid="${m.id}" title="Resume du match">📋</button>` : ''}
         ${m.fullMatchUrl ? `<button class="match-full" data-url="${m.fullMatchUrl}" data-nom="${(m.nom || m.date).replace(/'/g, '&apos;')}" title="Voir le match complet">📹</button>` : ''}
         ${isAdmin && !m.fullMatchUrl ? `<button class="match-archive" data-mid="${m.id}" title="Archiver le match complet">📥</button>` : ''}
         <div class="match-teams">
@@ -779,6 +780,9 @@ function renderHistorique() {
   });
   el.querySelectorAll('.match-archive').forEach(btn => {
     btn.onclick = e => { e.stopPropagation(); archiveFullMatch(btn.dataset.mid); };
+  });
+  el.querySelectorAll('.match-summary').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); openMatchSummary(btn.dataset.mid); };
   });
 }
 
@@ -2278,4 +2282,121 @@ function watchFullMatch(url, nom) {
   document.getElementById('videoTitle').textContent = nom + ' - Match complet';
   document.getElementById('videoPlayer').src = url;
   openModal('modalVideo');
+}
+
+// ─── RESUME MATCH (TIMELINE + PLAYLIST) ──────────────────
+function openMatchSummary(matchId) {
+  const m = historique.find(mm => mm.id === matchId);
+  if (!m || !m.videos || !m.videos.length) { toast('Aucune video pour ce match'); return; }
+
+  const vids = [...m.videos].sort((a, b) => (a.time || 0) - (b.time || 0));
+  const team1Ids = new Set(m.teams[0].joueurs);
+  const team2Ids = new Set(m.teams[1].joueurs);
+
+  // Calculer score progressif but par but
+  let s1 = 0, s2 = 0;
+  const goals = vids.map(v => {
+    const j = findJoueurByName(v.playerName);
+    const inTeam1 = j && team1Ids.has(j.id);
+    if (inTeam1) s1++;
+    else s2++;
+    const minutes = Math.floor((v.time || 0) / 60);
+    return { ...v, team: inTeam1 ? 1 : 2, scoreA: s1, scoreB: s2, minute: minutes, j };
+  });
+
+  let html = '<div class="match-summary-header">';
+  html += '<div class="msh-teams">';
+  html += '<div class="msh-team" style="color:var(--accent)">' + m.teams[0].nom + '</div>';
+  html += '<div class="msh-score">' + s1 + ' - ' + s2 + '</div>';
+  html += '<div class="msh-team">' + m.teams[1].nom + '</div>';
+  html += '</div>';
+  html += '<button class="btn-primary playlist-btn" onclick="playGoalsPlaylist(\'' + matchId + '\')">▶ Voir tous les buts en suivant</button>';
+  if (m.fullMatchUrl) {
+    html += '<button class="btn-ghost" onclick="watchFullMatch(\'' + m.fullMatchUrl + '\', \'' + (m.nom || m.date).replace(/'/g, "\\'") + '\')">📹 Match complet</button>';
+  }
+  html += '</div>';
+
+  // Timeline
+  html += '<div class="summary-timeline">';
+  goals.forEach((g, i) => {
+    const nom = g.j ? g.j.nom : (g.playerName || '?');
+    const isT1 = g.team === 1;
+    html += '<div class="st-row">';
+    // Colonne gauche (team A)
+    html += '<div class="st-left">';
+    if (isT1) {
+      html += '<div class="st-score">' + g.scoreA + '-' + g.scoreB + '</div>';
+      html += '<div class="st-name" style="color:var(--accent)">' + nom + '</div>';
+    }
+    html += '</div>';
+    // Centre: minute + bouton play
+    html += '<div class="st-center">';
+    html += '<div class="st-line"></div>';
+    html += '<button class="st-play" onclick="playVideo(\'' + g.url + '\', \'' + nom.replace(/'/g, "\\'") + '\', ' + (g.time || 0) + ')">' + g.minute + "'</button>";
+    html += '</div>';
+    // Colonne droite (team B)
+    html += '<div class="st-right">';
+    if (!isT1) {
+      html += '<div class="st-name" style="color:#4AB8FF">' + nom + '</div>';
+      html += '<div class="st-score">' + g.scoreA + '-' + g.scoreB + '</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('matchSummaryBody').innerHTML = html;
+  document.getElementById('matchSummaryTitle').textContent = 'Resume - ' + (m.nom || m.date);
+  openModal('modalMatchSummary');
+}
+
+// Playlist: joue les buts l'un apres l'autre
+async function playGoalsPlaylist(matchId) {
+  const m = historique.find(mm => mm.id === matchId);
+  if (!m || !m.videos || !m.videos.length) return;
+  const vids = [...m.videos].sort((a, b) => (a.time || 0) - (b.time || 0)).filter(v => v.url);
+  if (!vids.length) { toast('Aucune video disponible'); return; }
+
+  closeModal('modalMatchSummary');
+
+  // Charger video player
+  document.getElementById('videoTitle').textContent = 'Resume des buts (' + vids.length + ')';
+  const v = document.getElementById('videoPlayer');
+  v.src = vids[0].url;
+  openModal('modalVideo');
+
+  let i = 0;
+  const playNext = () => {
+    i++;
+    if (i >= vids.length) {
+      toast('Fin du resume');
+      return;
+    }
+    const j = findJoueurByName(vids[i].playerName);
+    const nom = j ? j.nom : (vids[i].playerName || '?');
+    const minute = Math.floor((vids[i].time || 0) / 60);
+    document.getElementById('videoTitle').textContent = 'But ' + (i+1) + '/' + vids.length + ' · ' + minute + "' · " + nom;
+    v.src = vids[i].url;
+    v.play().catch(() => {});
+  };
+  v.onended = playNext;
+  v.play().catch(() => {});
+  const firstNom = vids[0].playerName ? (findJoueurByName(vids[0].playerName)?.nom || vids[0].playerName) : '?';
+  const firstMin = Math.floor((vids[0].time || 0) / 60);
+  document.getElementById('videoTitle').textContent = 'But 1/' + vids.length + ' · ' + firstMin + "' · " + firstNom;
+}
+
+// ─── TOGGLE CLASSEMENT ────────────────────────────────────
+function toggleStatsPanel() {
+  const s = document.getElementById('stats');
+  const collapsed = s.classList.toggle('collapsed');
+  localStorage.setItem('bamfc_stats_collapsed', collapsed ? '1' : '0');
+}
+
+// Restorer l etat au demarrage
+if (localStorage.getItem('bamfc_stats_collapsed') === '1') {
+  setTimeout(() => {
+    const s = document.getElementById('stats');
+    if (s) s.classList.add('collapsed');
+  }, 100);
 }

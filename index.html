@@ -143,6 +143,7 @@
 
 <!-- STATS -->
 <section class="section" id="stats">
+  <button class="stats-toggle" onclick="toggleStatsPanel()" title="Replier le classement">⟩</button>
   <div class="section-header">
     <h2 class="section-title">Stats & classement</h2>
     <div class="format-pills" style="flex-wrap:wrap">
@@ -257,6 +258,17 @@
       <button class="modal-close" onclick="closeModal('modalFutEditor')">×</button>
     </div>
     <div class="modal-body" id="futEditorBody"></div>
+  </div>
+</div>
+
+<!-- MODAL MATCH SUMMARY -->
+<div class="modal-overlay" id="modalMatchSummary" onclick="closeModalIfBg(event,'modalMatchSummary')">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <span class="modal-title" id="matchSummaryTitle">Resume</span>
+      <button class="modal-close" onclick="closeModal('modalMatchSummary')">×</button>
+    </div>
+    <div class="modal-body" id="matchSummaryBody"></div>
   </div>
 </div>
 
