@@ -1,3 +1,4 @@
+var affinitesSort = 'winPct';
 
 function findJoueurByName(nom) {
   if (!nom) return null;
@@ -2402,7 +2403,7 @@ if (localStorage.getItem('bamfc_stats_collapsed') === '1') {
 }
 
 /* === AFFINITÉS === */
-let affinitesSort = 'winPct';
+/* affinitesSort déclaré en haut du fichier */
 
 function computeAffinities() {
   const pairs = {};
