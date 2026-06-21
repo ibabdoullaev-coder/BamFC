@@ -939,40 +939,52 @@ td.empty-state { padding: 2rem; }
   font-family: 'Space Grotesk', sans-serif;
 }
 
+
+
 /* TOGGLE CLASSEMENT */
 @media (min-width: 1100px) {
-  #stats {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  #stats { position: fixed; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
   #stats.collapsed {
-    transform: translateX(calc(100% - 32px));
+    transform: translateX(calc(100% - 40px));
   }
-  #stats.collapsed > *:not(.stats-toggle) {
-    opacity: 0;
+  #stats.collapsed > .section-header,
+  #stats.collapsed > .stats-table,
+  #stats.collapsed > div:not(.stats-toggle-wrap) { 
+    opacity: 0; 
     pointer-events: none;
     transition: opacity 0.2s;
   }
   .stats-toggle {
     position: absolute;
-    top: 16px; left: -1px;
-    width: 32px; height: 36px;
+    top: 50%; left: -1px;
+    transform: translateY(-50%);
+    width: 28px; height: 56px;
     background: var(--accent);
     color: #0D0D0D;
     border: none;
     border-radius: 8px 0 0 8px;
-    font-size: 16px; font-weight: 700;
+    font-size: 14px; font-weight: 700;
     cursor: pointer;
     z-index: 50;
-    transition: all 0.2s;
+    transition: background 0.2s;
     display: flex; align-items: center; justify-content: center;
   }
-  .stats-toggle:hover { background: #66ff85; transform: translateX(-2px); }
-  #stats.collapsed .stats-toggle {
-    transform: rotate(180deg);
-    left: -1px;
+  .stats-toggle:hover { background: #66ff85; }
+  #stats.collapsed .stats-toggle::before {
+    content: '🏆';
+    font-size: 16px;
   }
-  #stats { position: relative; }
+  #stats.collapsed .stats-toggle { font-size: 0; }
 }
 @media (max-width: 1099px) {
   .stats-toggle { display: none; }
 }
+
+/* MATCH SUMMARY plus large pour voir la timeline sans zoom */
+#modalMatchSummary .modal { max-width: 90vw !important; width: 800px !important; }
+#modalMatchSummary .modal-body { max-height: 75vh; overflow-y: auto; }
+.summary-timeline { max-width: 100% !important; }
+.st-row { min-height: 32px !important; }
+.st-name { font-size: 12px !important; }
+.st-score { padding: 3px 8px !important; font-size: 11px !important; }
+.st-play { padding: 3px 8px !important; font-size: 10px !important; }
