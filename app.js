@@ -1,14 +1,16 @@
 var affinitesSort = 'winPct';
 
-const TIERS = [
-  { key: 'goat',      label: 'GOAT',          color: '#FFD700' },
-  { key: 'monstre',   label: 'Monstre',       color: '#FF4500' },
-  { key: 'tres-bon',  label: 'Très bon',      color: '#9333ea' },
-  { key: 'stable',    label: 'Joueur stable', color: '#3b82f6' },
-  { key: 'espoir',    label: 'Espoir',        color: '#4AFF6A' },
-  { key: 'fakalaye',  label: 'Fakalaye',      color: '#FF8800' },
-  { key: 'ligaments', label: 'Ligaments',     color: '#888' }
+var tiers = [];
+const DEFAULT_TIERS = [
+  { id: 'goat',      label: 'GOAT',          color: '#FFD700', position: 0 },
+  { id: 'monstre',   label: 'Monstre',       color: '#FF4500', position: 1 },
+  { id: 'tres-bon',  label: 'Très bon',      color: '#9333ea', position: 2 },
+  { id: 'stable',    label: 'Joueur stable', color: '#3b82f6', position: 3 },
+  { id: 'espoir',    label: 'Espoir',        color: '#4AFF6A', position: 4 },
+  { id: 'fakalaye',  label: 'Fakalaye',      color: '#FF8800', position: 5 },
+  { id: 'ligaments', label: 'Ligaments',     color: '#888',    position: 6 }
 ];
+var tierDragId = null;
 
 function findJoueurByName(nom) {
   if (!nom) return null;
@@ -2517,10 +2519,29 @@ document.addEventListener('click', function(e) {
   renderAffinites();
 });
 
-/* === TIER LIST === */
-/* TIERS déclaré en haut du fichier */
 
-var tierDragId = null;
+/* === TIER LIST === */
+async function loadTiers() {
+  try {
+    if (typeof sb !== 'undefined') {
+      const r = await sb.from('tiers').select('*').order('position');
+      if (!r.error && r.data && r.data.length) { tiers = r.data; return; }
+    }
+  } catch (e) { console.error('loadTiers:', e); }
+  tiers = DEFAULT_TIERS.slice().map(t => Object.assign({}, t));
+}
+async function saveTier(t) {
+  try {
+    if (typeof sb !== 'undefined') {
+      await sb.from('tiers').upsert({ id: t.id, label: t.label, color: t.color, position: t.position });
+    }
+  } catch (e) { console.error('saveTier:', e); }
+}
+async function deleteTierDB(id) {
+  try {
+    if (typeof sb !== 'undefined') await sb.from('tiers').delete().eq('id', id);
+  } catch (e) { console.error('deleteTierDB:', e); }
+}
 
 function tierCanEdit() {
   return document.documentElement.classList.contains('is-admin')
@@ -2528,20 +2549,57 @@ function tierCanEdit() {
 }
 
 function tierTextColor(bg) {
-  if (bg === '#FFD700' || bg === '#4AFF6A') return '#000';
-  return '#fff';
+  if (!bg) return '#fff';
+  try {
+    const h = bg.replace('#','');
+    const r = parseInt(h.slice(0,2), 16);
+    const g = parseInt(h.slice(2,4), 16);
+    const b = parseInt(h.slice(4,6), 16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.6 ? '#000' : '#fff';
+  } catch (e) { return '#fff'; }
 }
 
 function tierPlayerCard(j, editable) {
   const photo = j.photo
     ? '<img src="' + j.photo + '" alt="">'
     : '<div class="tp-letter">' + ((j.nom || '?')[0]) + '</div>';
+  const off = j.tier_offset_y || 0;
+  const ctrl = editable
+    ? '<div class="tp-offset-controls" onclick="event.stopPropagation()">'
+      + '<button onclick="event.stopPropagation(); adjustTierOffset(\'' + j.id + '\', -5)" title="Monter">&uarr;</button>'
+      + '<button onclick="event.stopPropagation(); adjustTierOffset(\'' + j.id + '\', 5)" title="Descendre">&darr;</button>'
+      + '</div>'
+    : '';
   return ''
     + '<div class="tier-player" data-player-id="' + j.id + '"'
     + (editable ? ' draggable="true"' : '')
+    + ' style="transform: translateY(' + off + 'px)"'
     + ' onclick="openPlayerProfile(\'' + j.id + '\')">'
     +   '<div class="tp-avatar">' + photo + '</div>'
     +   '<div class="tp-name">' + (j.nom || '?') + '</div>'
+    +   ctrl
+    + '</div>';
+}
+
+function tierRowHTML(t, players, editable) {
+  const cards = players.map(j => tierPlayerCard(j, editable)).join('');
+  const actions = editable
+    ? '<div class="tier-actions">'
+      + '<input type="color" value="' + t.color + '" onchange="changeTierColor(\'' + t.id + '\', this.value)" title="Couleur">'
+      + '<button onclick="promptRenameTier(\'' + t.id + '\')" title="Renommer">&#9998;</button>'
+      + '<button onclick="moveTier(\'' + t.id + '\', -1)" title="Monter">&uarr;</button>'
+      + '<button onclick="moveTier(\'' + t.id + '\', 1)" title="Descendre">&darr;</button>'
+      + '<button onclick="removeTier(\'' + t.id + '\')" title="Supprimer">&times;</button>'
+      + '</div>'
+    : '';
+  return ''
+    + '<div class="tier-row" data-tier-key="' + t.id + '">'
+    +   '<div class="tier-label" style="background:' + t.color + ';color:' + tierTextColor(t.color) + '">'
+    +     '<span class="tier-label-text">' + t.label + '</span>'
+    +     actions
+    +   '</div>'
+    +   '<div class="tier-players" data-tier-drop="' + t.id + '">' + cards + '</div>'
     + '</div>';
 }
 
@@ -2550,33 +2608,27 @@ function renderTierList() {
   const benchEl = document.getElementById('tierListBench');
   if (!container || !benchEl) return;
   if (typeof joueurs === 'undefined' || !Array.isArray(joueurs)) return;
-
+  if (!tiers || !tiers.length) tiers = DEFAULT_TIERS.slice().map(t => Object.assign({}, t));
   const editable = tierCanEdit();
+  const sortedTiers = tiers.slice().sort((a, b) => (a.position || 0) - (b.position || 0));
   const byTier = {};
   const bench = [];
   for (const j of joueurs) {
-    if (j.tier && TIERS.some(t => t.key === j.tier)) {
+    if (j.tier && sortedTiers.some(t => t.id === j.tier)) {
       if (!byTier[j.tier]) byTier[j.tier] = [];
       byTier[j.tier].push(j);
     } else {
       bench.push(j);
     }
   }
-
-  container.innerHTML = TIERS.map(t => {
-    const players = byTier[t.key] || [];
-    const cards = players.map(j => tierPlayerCard(j, editable)).join('');
-    return ''
-      + '<div class="tier-row" data-tier-key="' + t.key + '">'
-      +   '<div class="tier-label" style="background:' + t.color + ';color:' + tierTextColor(t.color) + '">' + t.label + '</div>'
-      +   '<div class="tier-players" data-tier-drop="' + t.key + '">' + cards + '</div>'
-      + '</div>';
-  }).join('');
-
+  for (const k in byTier) byTier[k].sort((a, b) => (a.tier_order || 0) - (b.tier_order || 0));
+  let html = sortedTiers.map(t => tierRowHTML(t, byTier[t.id] || [], editable)).join('');
+  if (editable) html += '<button class="tier-add-btn" onclick="addTier()">+ Ajouter un tier</button>';
+  container.innerHTML = html;
   if (editable) {
     benchEl.style.display = '';
     benchEl.innerHTML = ''
-      + '<div class="tier-bench-label">Non classés (' + bench.length + ')</div>'
+      + '<div class="tier-bench-label">Non class&eacute;s (' + bench.length + ')</div>'
       + '<div class="tier-players" data-tier-drop="">'
       +   bench.map(j => tierPlayerCard(j, editable)).join('')
       + '</div>';
@@ -2585,6 +2637,86 @@ function renderTierList() {
     benchEl.style.display = 'none';
     benchEl.innerHTML = '';
   }
+}
+
+function addTier() {
+  if (!tierCanEdit()) return;
+  const newId = 'tier_' + Date.now();
+  const maxPos = tiers.reduce((m, t) => Math.max(m, t.position || 0), -1);
+  const newTier = { id: newId, label: 'Nouveau tier', color: '#666666', position: maxPos + 1 };
+  tiers.push(newTier);
+  saveTier(newTier);
+  renderTierList();
+}
+
+async function removeTier(id) {
+  if (!tierCanEdit()) return;
+  const t = tiers.find(tt => tt.id === id);
+  if (!t) return;
+  if (!confirm('Supprimer le tier "' + t.label + '" ? Les joueurs reviennent dans Non classes.')) return;
+  for (const j of joueurs) {
+    if (j.tier === id) {
+      j.tier = null; j.tier_order = 0;
+      try {
+        if (typeof pushJoueur === 'function') await pushJoueur(j);
+        else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier: null, tier_order: 0 }).eq('id', j.id);
+      } catch (e) { console.error(e); }
+    }
+  }
+  tiers = tiers.filter(tt => tt.id !== id);
+  await deleteTierDB(id);
+  if (typeof save === 'function') save('bamfc_joueurs', joueurs);
+  renderTierList();
+}
+
+function promptRenameTier(id) {
+  if (!tierCanEdit()) return;
+  const t = tiers.find(tt => tt.id === id);
+  if (!t) return;
+  const newLabel = prompt('Nouveau nom du tier :', t.label);
+  if (newLabel && newLabel.trim()) {
+    t.label = newLabel.trim();
+    saveTier(t);
+    renderTierList();
+  }
+}
+
+function changeTierColor(id, newColor) {
+  if (!tierCanEdit()) return;
+  const t = tiers.find(tt => tt.id === id);
+  if (!t) return;
+  t.color = newColor;
+  saveTier(t);
+  renderTierList();
+}
+
+async function moveTier(id, direction) {
+  if (!tierCanEdit()) return;
+  const sorted = tiers.slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+  const idx = sorted.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= sorted.length) return;
+  const a = sorted[idx], b = sorted[newIdx];
+  const tmp = a.position; a.position = b.position; b.position = tmp;
+  await saveTier(a); await saveTier(b);
+  renderTierList();
+}
+
+async function adjustTierOffset(id, delta) {
+  if (!tierCanEdit()) return;
+  const j = joueurs.find(jj => jj.id === id);
+  if (!j) return;
+  const cur = j.tier_offset_y || 0;
+  const next = Math.max(-30, Math.min(30, cur + delta));
+  if (next === cur) return;
+  j.tier_offset_y = next;
+  renderTierList();
+  try {
+    if (typeof pushJoueur === 'function') await pushJoueur(j);
+    else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier_offset_y: next }).eq('id', j.id);
+    if (typeof save === 'function') save('bamfc_joueurs', joueurs);
+  } catch (e) { console.error(e); }
 }
 
 function setupTierDragDrop() {
@@ -2597,38 +2729,71 @@ function setupTierDragDrop() {
     el.addEventListener('dragend', () => {
       el.classList.remove('dragging');
       tierDragId = null;
+      document.querySelectorAll('.tier-drop-indicator').forEach(d => d.remove());
     });
   });
   document.querySelectorAll('#tierlist [data-tier-drop]').forEach(zone => {
     zone.addEventListener('dragover', (e) => {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      zone.classList.add('drag-over');
+      const children = Array.from(zone.querySelectorAll('.tier-player:not(.dragging)'));
+      const x = e.clientX;
+      let insertBefore = null;
+      for (const child of children) {
+        const rect = child.getBoundingClientRect();
+        if (x < rect.left + rect.width / 2) { insertBefore = child; break; }
+      }
+      document.querySelectorAll('.tier-drop-indicator').forEach(d => d.remove());
+      const indicator = document.createElement('div');
+      indicator.className = 'tier-drop-indicator';
+      if (insertBefore) zone.insertBefore(indicator, insertBefore);
+      else zone.appendChild(indicator);
     });
-    zone.addEventListener('dragleave', () => {
-      zone.classList.remove('drag-over');
+    zone.addEventListener('dragleave', (e) => {
+      if (e.currentTarget === zone && !zone.contains(e.relatedTarget)) {
+        document.querySelectorAll('.tier-drop-indicator').forEach(d => d.remove());
+      }
     });
     zone.addEventListener('drop', async (e) => {
       e.preventDefault();
-      zone.classList.remove('drag-over');
-      if (!tierDragId) return;
       const newTier = zone.getAttribute('data-tier-drop') || null;
+      const children = Array.from(zone.querySelectorAll('.tier-player:not(.dragging)'));
+      const x = e.clientX;
+      let insertIndex = children.length;
+      for (let i = 0; i < children.length; i++) {
+        const rect = children[i].getBoundingClientRect();
+        if (x < rect.left + rect.width / 2) { insertIndex = i; break; }
+      }
+      document.querySelectorAll('.tier-drop-indicator').forEach(d => d.remove());
+      if (!tierDragId) return;
       const j = (typeof joueurs !== 'undefined') ? joueurs.find(jj => jj.id === tierDragId) : null;
       if (!j) return;
-      if ((j.tier || null) === (newTier || null)) return;
+      const inTarget = joueurs.filter(jj => jj.id !== tierDragId && (jj.tier || null) === (newTier || null))
+        .sort((a, b) => (a.tier_order || 0) - (b.tier_order || 0));
+      inTarget.splice(insertIndex, 0, j);
       j.tier = newTier;
+      const updates = [];
+      for (let i = 0; i < inTarget.length; i++) {
+        const jj = inTarget[i];
+        if (jj.tier_order !== i || jj === j) { jj.tier_order = i; updates.push(jj); }
+      }
       renderTierList();
       try {
-        if (typeof pushJoueur === 'function') {
-          await pushJoueur(j);
-        } else if (typeof sb !== 'undefined') {
-          await sb.from('joueurs').update({ tier: newTier }).eq('id', j.id);
+        for (const jj of updates) {
+          if (typeof pushJoueur === 'function') await pushJoueur(jj);
+          else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier: jj.tier, tier_order: jj.tier_order }).eq('id', jj.id);
         }
         if (typeof save === 'function') save('bamfc_joueurs', joueurs);
-      } catch (err) {
-        console.error('Erreur push tier:', err);
-      }
+      } catch (err) { console.error('Erreur push tier:', err); }
     });
   });
 }
+
+(function bootstrapTiers() {
+  const start = () => {
+    loadTiers().then(() => { try { renderTierList(); } catch(e) { console.error(e); } });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
 
