@@ -1,5 +1,15 @@
 var affinitesSort = 'winPct';
 
+const TIERS = [
+  { key: 'goat',      label: 'GOAT',          color: '#FFD700' },
+  { key: 'monstre',   label: 'Monstre',       color: '#FF4500' },
+  { key: 'tres-bon',  label: 'Très bon',      color: '#9333ea' },
+  { key: 'stable',    label: 'Joueur stable', color: '#3b82f6' },
+  { key: 'espoir',    label: 'Espoir',        color: '#4AFF6A' },
+  { key: 'fakalaye',  label: 'Fakalaye',      color: '#FF8800' },
+  { key: 'ligaments', label: 'Ligaments',     color: '#888' }
+];
+
 function findJoueurByName(nom) {
   if (!nom) return null;
   const lower = nom.toLowerCase().trim();
@@ -2508,15 +2518,7 @@ document.addEventListener('click', function(e) {
 });
 
 /* === TIER LIST === */
-const TIERS = [
-  { key: 'goat',      label: 'GOAT',          color: '#FFD700' },
-  { key: 'monstre',   label: 'Monstre',       color: '#FF4500' },
-  { key: 'tres-bon',  label: 'Très bon',      color: '#9333ea' },
-  { key: 'stable',    label: 'Joueur stable', color: '#3b82f6' },
-  { key: 'espoir',    label: 'Espoir',        color: '#4AFF6A' },
-  { key: 'fakalaye',  label: 'Fakalaye',      color: '#FF8800' },
-  { key: 'ligaments', label: 'Ligaments',     color: '#888' }
-];
+/* TIERS déclaré en haut du fichier */
 
 var tierDragId = null;
 
