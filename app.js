@@ -2658,8 +2658,9 @@ async function removeTier(id) {
     if (j.tier === id) {
       j.tier = null; j.tier_order = 0;
       try {
-        if (typeof pushJoueur === 'function') await pushJoueur(j);
-        else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier: null, tier_order: 0 }).eq('id', j.id);
+        if (typeof sb !== 'undefined') {
+          await sb.from('joueurs').update({ tier: null, tier_order: 0 }).eq('id', j.id);
+        }
       } catch (e) { console.error(e); }
     }
   }
@@ -2713,8 +2714,9 @@ async function adjustTierOffset(id, delta) {
   j.tier_offset_y = next;
   renderTierList();
   try {
-    if (typeof pushJoueur === 'function') await pushJoueur(j);
-    else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier_offset_y: next }).eq('id', j.id);
+    if (typeof sb !== 'undefined') {
+      await sb.from('joueurs').update({ tier_offset_y: next }).eq('id', j.id);
+    }
     if (typeof save === 'function') save('bamfc_joueurs', joueurs);
   } catch (e) { console.error(e); }
 }
@@ -2780,8 +2782,9 @@ function setupTierDragDrop() {
       renderTierList();
       try {
         for (const jj of updates) {
-          if (typeof pushJoueur === 'function') await pushJoueur(jj);
-          else if (typeof sb !== 'undefined') await sb.from('joueurs').update({ tier: jj.tier, tier_order: jj.tier_order }).eq('id', jj.id);
+          if (typeof sb !== 'undefined') {
+            await sb.from('joueurs').update({ tier: jj.tier || null, tier_order: jj.tier_order || 0 }).eq('id', jj.id);
+          }
         }
         if (typeof save === 'function') save('bamfc_joueurs', joueurs);
       } catch (err) { console.error('Erreur push tier:', err); }
@@ -2796,4 +2799,23 @@ function setupTierDragDrop() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();
+
+/* === KEYBOARD ARROWS sur videos (+/- 5s) === */
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.target && e.target.isContentEditable) return;
+  const vids = Array.from(document.querySelectorAll('video'));
+  if (!vids.length) return;
+  let target = vids.find(v => !v.paused && v.offsetParent !== null);
+  if (!target) {
+    const visible = vids.filter(v => v.offsetParent !== null && (v.duration || 0) > 0);
+    target = visible[visible.length - 1];
+  }
+  if (!target) return;
+  e.preventDefault();
+  if (e.key === 'ArrowLeft') target.currentTime = Math.max(0, target.currentTime - 5);
+  else target.currentTime = Math.min((target.duration || Infinity), target.currentTime + 5);
+});
 
