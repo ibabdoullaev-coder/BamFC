@@ -148,7 +148,7 @@ async function syncFromCloud() {
       sb.from('historique').select('*').order('created_at', { ascending: false })
     ]);
     if (j) {
-      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [], stats: r.stats || null, rating: r.rating || null, country: r.country || 'FR', club: r.club || 'bamfc' }));
+      joueurs = j.map(r => ({ id: r.id, nom: r.nom, poste: r.poste || '', photo: r.photo || null, pin: r.pin || null, aliases: r.aliases ? r.aliases.split('|').filter(Boolean) : [], stats: r.stats || null, rating: r.rating || null, country: r.country || 'FR', club: r.club || 'bamfc', tier: r.tier || null, tier_order: r.tier_order || 0, tier_offset_y: r.tier_offset_y || 0 }));
       localStorage.setItem('bamfc_joueurs', JSON.stringify(joueurs));
     }
     if (h) {
@@ -2586,7 +2586,7 @@ function tierRowHTML(t, players, editable) {
   const cards = players.map(j => tierPlayerCard(j, editable)).join('');
   const actions = editable
     ? '<div class="tier-actions">'
-      + '<input type="color" value="' + t.color + '" onchange="changeTierColor(\'' + t.id + '\', this.value)" title="Couleur">'
+      + '<input type="color" value="' + (function(c){var h=(c||'').replace('#','');if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];if(h.length!==6)h='888888';return '#'+h;})(t.color) + '" onchange="changeTierColor(\'' + t.id + '\', this.value)" title="Couleur">'
       + '<button onclick="promptRenameTier(\'' + t.id + '\')" title="Renommer">&#9998;</button>'
       + '<button onclick="moveTier(\'' + t.id + '\', -1)" title="Monter">&uarr;</button>'
       + '<button onclick="moveTier(\'' + t.id + '\', 1)" title="Descendre">&darr;</button>'
