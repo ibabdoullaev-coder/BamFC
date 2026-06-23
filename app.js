@@ -2808,14 +2808,20 @@ document.addEventListener('keydown', function(e) {
   if (e.target && e.target.isContentEditable) return;
   const vids = Array.from(document.querySelectorAll('video'));
   if (!vids.length) return;
-  let target = vids.find(v => !v.paused && v.offsetParent !== null);
+  let target = null;
+  if (document.activeElement && document.activeElement.tagName === 'VIDEO') {
+    target = document.activeElement;
+  }
+  if (!target) target = vids.find(v => !v.paused && v.offsetParent !== null);
   if (!target) {
     const visible = vids.filter(v => v.offsetParent !== null && (v.duration || 0) > 0);
     target = visible[visible.length - 1];
   }
   if (!target) return;
   e.preventDefault();
+  e.stopPropagation();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   if (e.key === 'ArrowLeft') target.currentTime = Math.max(0, target.currentTime - 5);
   else target.currentTime = Math.min((target.duration || Infinity), target.currentTime + 5);
-});
+}, true);
 
