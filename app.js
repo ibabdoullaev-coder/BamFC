@@ -177,7 +177,7 @@ async function syncFromCloud() {
 
 async function pushJoueur(j) {
   if (!sb) return;
-  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null, stats: j.stats || null, rating: j.rating || null, country: j.country || null, club: j.club || null });
+  await sb.from('joueurs').upsert({ id: j.id, nom: j.nom, poste: j.poste, photo: j.photo, pin: j.pin || null, aliases: (j.aliases || []).join('|') || null, stats: j.stats || null, rating: j.rating || null, country: j.country || null, club: j.club || null, tier: j.tier || null, tier_order: j.tier_order || 0, tier_offset_y: j.tier_offset_y || 0 });
 }
 async function deleteJoueurCloud(id) {
   if (!sb) return;
