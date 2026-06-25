@@ -1572,7 +1572,51 @@ async function deleteProno(id) {
 // ─── MATCH DRAG&DROP ─────────────────────────────────────
 const SLOT_POSITIONS_LEFT  = [[0.05,0.50],[0.18,0.22],[0.18,0.78],[0.33,0.35],[0.33,0.65]];
 const SLOT_POSITIONS_RIGHT = [[0.95,0.50],[0.82,0.22],[0.82,0.78],[0.67,0.35],[0.67,0.65]];
+// Layouts par format (5/6/7/8 joueurs par equipe) : x=horizontal (0=gauche), y=vertical (0=haut, 1=bas)
+const SLOT_LAYOUTS_LEFT = {
+  5: [[0.05,0.50],[0.18,0.22],[0.18,0.78],[0.33,0.35],[0.33,0.65]],
+  6: [[0.05,0.50],[0.15,0.20],[0.15,0.80],[0.28,0.35],[0.28,0.65],[0.40,0.50]],
+  7: [[0.05,0.50],[0.14,0.18],[0.14,0.82],[0.26,0.30],[0.26,0.70],[0.38,0.40],[0.38,0.60]],
+  8: [[0.05,0.50],[0.12,0.15],[0.12,0.85],[0.22,0.30],[0.22,0.70],[0.32,0.20],[0.32,0.80],[0.40,0.50]]
+};
+const SLOT_LAYOUTS_RIGHT = {
+  5: [[0.95,0.50],[0.82,0.22],[0.82,0.78],[0.67,0.35],[0.67,0.65]],
+  6: [[0.95,0.50],[0.85,0.20],[0.85,0.80],[0.72,0.35],[0.72,0.65],[0.60,0.50]],
+  7: [[0.95,0.50],[0.86,0.18],[0.86,0.82],[0.74,0.30],[0.74,0.70],[0.62,0.40],[0.62,0.60]],
+  8: [[0.95,0.50],[0.88,0.15],[0.88,0.85],[0.78,0.30],[0.78,0.70],[0.68,0.20],[0.68,0.80],[0.60,0.50]]
+};
+function getMatchFormat() {
+  const v = parseInt(localStorage.getItem('bamfc_match_format') || '5', 10);
+  return [5,6,7,8].includes(v) ? v : 5;
+}
+function setMatchFormat(n) {
+  if (![5,6,7,8].includes(n)) return;
+  const prev = getMatchFormat();
+  if (n === prev) return;
+  localStorage.setItem('bamfc_match_format', String(n));
+  // Garder les joueurs existants, ajouter ou tronquer les slots
+  const t0 = (slots.team0 || []).slice(0, n);
+  const t1 = (slots.team1 || []).slice(0, n);
+  while (t0.length < n) t0.push(null);
+  while (t1.length < n) t1.push(null);
+  slots = { team0: t0, team1: t1 };
+  const sel = document.getElementById('matchFormatSelect');
+  if (sel) sel.value = String(n);
+  renderSlots();
+  renderBench();
+}
 let slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
+// Init format au chargement
+(function initMatchFormat() {
+  const set = () => {
+    const sel = document.getElementById('matchFormatSelect');
+    const n = getMatchFormat();
+    if (sel) sel.value = String(n);
+    slots = { team0: new Array(n).fill(null), team1: new Array(n).fill(null) };
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', set);
+  else set();
+})();
 
 function initMatchPitch() {
   drawMatchField();
@@ -1607,7 +1651,8 @@ function renderSlots() {
   container.innerHTML = '';
   [0, 1].forEach(ti => {
     const teamKey = 'team' + ti;
-    const positions = ti === 0 ? SLOT_POSITIONS_LEFT : SLOT_POSITIONS_RIGHT;
+    const fmt = getMatchFormat();
+    const positions = (ti === 0 ? SLOT_LAYOUTS_LEFT[fmt] : SLOT_LAYOUTS_RIGHT[fmt]) || (ti === 0 ? SLOT_POSITIONS_LEFT : SLOT_POSITIONS_RIGHT);
     const acc = TEAM_ACCENT[ti];
     slots[teamKey].forEach((playerId, idx) => {
       const pos = positions[idx];
@@ -1697,16 +1742,19 @@ function handleDrop(toTeam, toIdx) {
 }
 
 function clearTeams() {
-  slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
+  const n = getMatchFormat();
+  slots = { team0: new Array(n).fill(null), team1: new Array(n).fill(null) };
   renderSlots();
   renderBench();
 }
 
 function randomFillTeams() {
   clearTeams();
+  const n = getMatchFormat();
   const pool = shuffle(joueurs.slice());
-  pool.slice(0, 5).forEach((p, i) => slots.team0[i] = p.id);
-  pool.slice(5, 10).forEach((p, i) => slots.team1[i] = p.id);
+  if (pool.length < n * 2) toast('Pas assez de joueurs (' + pool.length + ' dispo, ' + (n*2) + ' requis)');
+  pool.slice(0, n).forEach((p, i) => slots.team0[i] = p.id);
+  pool.slice(n, n * 2).forEach((p, i) => slots.team1[i] = p.id);
   renderSlots();
   renderBench();
 }
@@ -1725,7 +1773,7 @@ async function savePronoFromTeams() {
       { nom: TEAM_NAMES[0], joueurs: team0Players, predictions: {} },
       { nom: TEAM_NAMES[1], joueurs: team1Players, predictions: {} },
     ],
-    format: '2',
+    format: String(getMatchFormat()),
   };
   if (sb) await sb.from('pronostiques').upsert({ id: prono.id, nom: prono.nom, date: prono.date, teams: prono.teams, format: prono.format });
   pronos.unshift(prono);
@@ -2903,14 +2951,29 @@ function renderPresetsMenu() {
 function loadPreset(id) {
   const p = pronos.find(pp => pp.id === id);
   if (!p || !p.teams || !p.teams.length) { toast('Preset invalide'); return; }
-  // Reset COMPLET via reassignation (comme clearTeams)
-  slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
+  // Determiner le format du preset : on prend le plus grand nb de joueurs entre les 2 equipes
+  let fmt = 0;
+  for (const t of p.teams) {
+    const cnt = (t && t.joueurs) ? t.joueurs.filter(Boolean).length : 0;
+    if (cnt > fmt) fmt = cnt;
+  }
+  if (![5,6,7,8].includes(fmt)) {
+    // fallback : si format note dans le preset
+    const pfmt = parseInt(p.format || '5', 10);
+    fmt = [5,6,7,8].includes(pfmt) ? pfmt : 5;
+  }
+  // Set le format (met a jour le select aussi)
+  localStorage.setItem('bamfc_match_format', String(fmt));
+  const sel = document.getElementById('matchFormatSelect');
+  if (sel) sel.value = String(fmt);
+  // Reset slots avec la bonne taille
+  slots = { team0: new Array(fmt).fill(null), team1: new Array(fmt).fill(null) };
   // Hydrate depuis les equipes du preset
   for (let ti = 0; ti < Math.min(p.teams.length, 2); ti++) {
     const t = p.teams[ti];
     const ids = (t && t.joueurs) || [];
     const key = ti === 0 ? 'team0' : 'team1';
-    for (let i = 0; i < Math.min(ids.length, 5); i++) {
+    for (let i = 0; i < Math.min(ids.length, fmt); i++) {
       slots[key][i] = ids[i];
     }
   }
@@ -2918,7 +2981,7 @@ function loadPreset(id) {
   if (typeof renderBench === 'function') renderBench();
   if (typeof renderTeams === 'function') renderTeams();
   togglePresetsMenu(false);
-  toast('Preset charge : ' + (p.nom || p.date || 'sans nom'));
+  toast('Preset charge (' + fmt + 'v' + fmt + ') : ' + (p.nom || p.date || 'sans nom'));
   const matchEl = document.getElementById('match');
   if (matchEl) matchEl.scrollIntoView({ behavior: 'smooth' });
 }
