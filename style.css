@@ -1260,3 +1260,19 @@ td.empty-state { padding: 2rem; }
   box-shadow: none !important;
 }
 
+/* === FIX CENTRAGE SLOTS FUT === */
+.match-pitch-slots .match-slot {
+  transform: translate(-50%, -50%);
+}
+.match-pitch-slots .match-slot .slot-card,
+.match-pitch-slots .match-slot .slot-empty {
+  position: relative;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.match-slot {
+  width: auto;
+  height: auto;
+}
+
