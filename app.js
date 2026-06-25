@@ -1575,15 +1575,15 @@ const SLOT_POSITIONS_RIGHT = [[0.95,0.50],[0.82,0.22],[0.82,0.78],[0.67,0.35],[0
 // Layouts par format (5/6/7/8 joueurs par equipe) : x=horizontal (0=gauche), y=vertical (0=haut, 1=bas)
 const SLOT_LAYOUTS_LEFT = {
   5: [[0.05,0.50],[0.18,0.22],[0.18,0.78],[0.33,0.35],[0.33,0.65]],
-  6: [[0.05,0.50],[0.15,0.20],[0.15,0.80],[0.28,0.35],[0.28,0.65],[0.40,0.50]],
-  7: [[0.05,0.50],[0.14,0.18],[0.14,0.82],[0.26,0.30],[0.26,0.70],[0.38,0.40],[0.38,0.60]],
-  8: [[0.05,0.50],[0.12,0.15],[0.12,0.85],[0.22,0.30],[0.22,0.70],[0.32,0.20],[0.32,0.80],[0.40,0.50]]
+  6: [[0.05,0.50],[0.16,0.22],[0.16,0.78],[0.28,0.35],[0.28,0.65],[0.42,0.50]],
+  7: [[0.05,0.50],[0.16,0.22],[0.16,0.78],[0.28,0.35],[0.28,0.65],[0.42,0.40],[0.42,0.60]],
+  8: [[0.05,0.50],[0.16,0.22],[0.16,0.78],[0.28,0.35],[0.28,0.65],[0.40,0.25],[0.40,0.75],[0.45,0.50]]
 };
 const SLOT_LAYOUTS_RIGHT = {
   5: [[0.95,0.50],[0.82,0.22],[0.82,0.78],[0.67,0.35],[0.67,0.65]],
-  6: [[0.95,0.50],[0.85,0.20],[0.85,0.80],[0.72,0.35],[0.72,0.65],[0.60,0.50]],
-  7: [[0.95,0.50],[0.86,0.18],[0.86,0.82],[0.74,0.30],[0.74,0.70],[0.62,0.40],[0.62,0.60]],
-  8: [[0.95,0.50],[0.88,0.15],[0.88,0.85],[0.78,0.30],[0.78,0.70],[0.68,0.20],[0.68,0.80],[0.60,0.50]]
+  6: [[0.95,0.50],[0.84,0.22],[0.84,0.78],[0.72,0.35],[0.72,0.65],[0.58,0.50]],
+  7: [[0.95,0.50],[0.84,0.22],[0.84,0.78],[0.72,0.35],[0.72,0.65],[0.58,0.40],[0.58,0.60]],
+  8: [[0.95,0.50],[0.84,0.22],[0.84,0.78],[0.72,0.35],[0.72,0.65],[0.60,0.25],[0.60,0.75],[0.55,0.50]]
 };
 function getMatchFormat() {
   const v = parseInt(localStorage.getItem('bamfc_match_format') || '5', 10);
@@ -1666,9 +1666,8 @@ function renderSlots() {
       if (playerId) {
         const j = joueurs.find(jj => jj.id === playerId);
         if (j) {
-          const col = colorFor(j.nom);
-          const avatar = j.photo ? `<div class="pp-avatar" style="background-image:url('${j.photo}');background-size:cover;background-position:center;border-color:${acc}"></div>` : `<div class="pp-avatar" style="background:${col.bg};color:${col.text};border-color:${acc}">${initials(j.nom)}</div>`;
-          slot.innerHTML = `<div class="slot-card" draggable="true" data-pid="${j.id}" data-from-team="${ti}" data-from-idx="${idx}" style="border-color:${acc}">${avatar}<div class="pp-name">${j.nom}</div></div>`;
+          const futCard = makeFutCard(j, 'fut-card-mini');
+          slot.innerHTML = `<div class="slot-card" draggable="true" data-pid="${j.id}" data-from-team="${ti}" data-from-idx="${idx}">${futCard}</div>`;
         }
       } else {
         slot.innerHTML = `<div class="slot-empty" style="border-color:${acc}">+</div>`;
