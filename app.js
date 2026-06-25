@@ -2903,27 +2903,15 @@ function renderPresetsMenu() {
 function loadPreset(id) {
   const p = pronos.find(pp => pp.id === id);
   if (!p || !p.teams || !p.teams.length) { toast('Preset invalide'); return; }
-  // Reset slots (gere les 2 structures possibles : array ou objet team0/team1)
-  try {
-    if (typeof slots !== 'undefined') {
-      if (Array.isArray(slots)) {
-        slots[0] = [null, null, null, null, null];
-        slots[1] = [null, null, null, null, null];
-      } else if (slots && (slots.team0 !== undefined)) {
-        slots.team0 = [null, null, null, null, null];
-        slots.team1 = [null, null, null, null, null];
-      }
-    }
-  } catch (e) { console.error(e); }
+  // Reset COMPLET via reassignation (comme clearTeams)
+  slots = { team0: [null,null,null,null,null], team1: [null,null,null,null,null] };
   // Hydrate depuis les equipes du preset
   for (let ti = 0; ti < Math.min(p.teams.length, 2); ti++) {
     const t = p.teams[ti];
     const ids = (t && t.joueurs) || [];
+    const key = ti === 0 ? 'team0' : 'team1';
     for (let i = 0; i < Math.min(ids.length, 5); i++) {
-      try {
-        if (Array.isArray(slots)) slots[ti][i] = ids[i];
-        else if (slots && (slots.team0 !== undefined)) slots[ti === 0 ? 'team0' : 'team1'][i] = ids[i];
-      } catch (e) { console.error(e); }
+      slots[key][i] = ids[i];
     }
   }
   if (typeof renderSlots === 'function') renderSlots();
@@ -2931,7 +2919,8 @@ function loadPreset(id) {
   if (typeof renderTeams === 'function') renderTeams();
   togglePresetsMenu(false);
   toast('Preset charge : ' + (p.nom || p.date || 'sans nom'));
-  document.getElementById('match')?.scrollIntoView({ behavior: 'smooth' });
+  const matchEl = document.getElementById('match');
+  if (matchEl) matchEl.scrollIntoView({ behavior: 'smooth' });
 }
 
 async function renamePreset(id) {
