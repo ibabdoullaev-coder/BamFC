@@ -1440,6 +1440,10 @@ function setStatsSort(mode) {
 
 // ─── PRONOSTIQUES ─────────────────────────────────────────
 let pronos = [];
+function refreshPresetsIfOpen() {
+  const m = document.getElementById('presetsMenu');
+  if (m && m.style.display !== 'none') renderPresetsMenu();
+}
 
 async function syncPronos() {
   if (!sb) return;
@@ -2863,4 +2867,105 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowLeft') target.currentTime = Math.max(0, target.currentTime - 5);
   else target.currentTime = Math.min((target.duration || Infinity), target.currentTime + 5);
 }, true);
+
+/* === PRESETS (anciens tirages chargeables sur le terrain) === */
+function togglePresetsMenu(force) {
+  const m = document.getElementById('presetsMenu');
+  if (!m) return;
+  const willOpen = (force === true) ? true : (force === false ? false : m.style.display === 'none');
+  if (willOpen) { renderPresetsMenu(); m.style.display = 'block'; }
+  else { m.style.display = 'none'; }
+}
+
+function renderPresetsMenu() {
+  const m = document.getElementById('presetsMenu');
+  if (!m) return;
+  if (!pronos || !pronos.length) {
+    m.innerHTML = '<div class="preset-empty">Aucun preset enregistre.<br>Lance un tirage et clique 💾 pour en creer un.</div>';
+    return;
+  }
+  m.innerHTML = pronos.map(p => {
+    const nom = (p.nom || 'Sans nom').replace(/"/g, '&quot;');
+    const date = p.date || '';
+    return ''
+      + '<div class="preset-item" data-id="' + p.id + '">'
+      +   '<div class="preset-name" onclick="loadPreset(\'' + p.id + '\')">' + nom
+      +     (date ? '<span class="preset-date">' + date + '</span>' : '')
+      +   '</div>'
+      +   '<div class="preset-actions">'
+      +     '<button onclick="renamePreset(\'' + p.id + '\')" title="Renommer">&#9998;</button>'
+      +     '<button onclick="deletePreset(\'' + p.id + '\')" title="Supprimer">&times;</button>'
+      +   '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function loadPreset(id) {
+  const p = pronos.find(pp => pp.id === id);
+  if (!p || !p.teams || !p.teams.length) { toast('Preset invalide'); return; }
+  // Reset slots (gere les 2 structures possibles : array ou objet team0/team1)
+  try {
+    if (typeof slots !== 'undefined') {
+      if (Array.isArray(slots)) {
+        slots[0] = [null, null, null, null, null];
+        slots[1] = [null, null, null, null, null];
+      } else if (slots && (slots.team0 !== undefined)) {
+        slots.team0 = [null, null, null, null, null];
+        slots.team1 = [null, null, null, null, null];
+      }
+    }
+  } catch (e) { console.error(e); }
+  // Hydrate depuis les equipes du preset
+  for (let ti = 0; ti < Math.min(p.teams.length, 2); ti++) {
+    const t = p.teams[ti];
+    const ids = (t && t.joueurs) || [];
+    for (let i = 0; i < Math.min(ids.length, 5); i++) {
+      try {
+        if (Array.isArray(slots)) slots[ti][i] = ids[i];
+        else if (slots && (slots.team0 !== undefined)) slots[ti === 0 ? 'team0' : 'team1'][i] = ids[i];
+      } catch (e) { console.error(e); }
+    }
+  }
+  if (typeof renderSlots === 'function') renderSlots();
+  if (typeof renderBench === 'function') renderBench();
+  if (typeof renderTeams === 'function') renderTeams();
+  togglePresetsMenu(false);
+  toast('Preset charge : ' + (p.nom || p.date || 'sans nom'));
+  document.getElementById('match')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function renamePreset(id) {
+  const p = pronos.find(pp => pp.id === id);
+  if (!p) return;
+  const newNom = prompt('Nouveau nom du preset :', p.nom || '');
+  if (newNom === null) return;
+  p.nom = newNom.trim() || null;
+  try {
+    if (typeof sb !== 'undefined') {
+      await sb.from('pronostiques').update({ nom: p.nom }).eq('id', id);
+    }
+  } catch (e) { console.error(e); }
+  renderPresetsMenu();
+  if (typeof renderPronos === 'function') { try { renderPronos(); } catch(e){} }
+}
+
+async function deletePreset(id) {
+  const p = pronos.find(pp => pp.id === id);
+  if (!p) return;
+  if (!confirm('Supprimer le preset "' + (p.nom || p.date || 'sans nom') + '" ?')) return;
+  try {
+    if (typeof sb !== 'undefined') await sb.from('pronostiques').delete().eq('id', id);
+  } catch (e) { console.error(e); }
+  pronos = pronos.filter(pp => pp.id !== id);
+  renderPresetsMenu();
+  if (typeof renderPronos === 'function') { try { renderPronos(); } catch(e){} }
+}
+
+// Fermer le dropdown au clic en dehors
+document.addEventListener('click', function(e) {
+  const m = document.getElementById('presetsMenu');
+  if (!m || m.style.display === 'none') return;
+  if (e.target.closest && (e.target.closest('.presets-wrap') || e.target.closest('.presets-menu'))) return;
+  m.style.display = 'none';
+});
 

@@ -58,6 +58,10 @@
   <div class="section-header">
     <h2 class="section-title">Nouveau match</h2>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="presets-wrap">
+        <button class="btn-ghost" onclick="togglePresetsMenu()">📂 Presets ▾</button>
+        <div class="presets-menu" id="presetsMenu" style="display:none"></div>
+      </div>
       <button class="btn-ghost" onclick="randomFillTeams()">🎲 Tirer au sort</button>
       <button class="btn-ghost" onclick="clearTeams()">↺ Vider</button>
       <button class="btn-primary" onclick="savePronoFromTeams()">💾 Enregistrer pronostique</button>
@@ -123,7 +127,7 @@
 </section>
 
 <!-- PRONOSTIQUES -->
-<section class="section" id="pronos">
+<section class="section" id="pronos" style="display:none">
   <div class="section-header">
     <h2 class="section-title">Pronostiques (tirages)</h2>
   </div>

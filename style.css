@@ -1172,3 +1172,40 @@ td.empty-state { padding: 2rem; }
   .tier-label-text { font-size: 16px; }
 }
 
+/* === PRESETS DROPDOWN === */
+.presets-wrap { position: relative; display: inline-block; }
+.presets-menu {
+  position: absolute; top: 100%; left: 0; margin-top: 4px;
+  min-width: 280px; max-height: 360px; overflow-y: auto;
+  background: var(--card-bg, #1a1a1a);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 10px; padding: 6px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.preset-item {
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 10px; border-radius: 6px;
+  cursor: pointer; transition: background 0.1s;
+}
+.preset-item:hover { background: rgba(74, 255, 106, 0.08); }
+.preset-name {
+  flex: 1; color: var(--text, #fff);
+  font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.preset-date {
+  color: var(--muted, #888); font-size: 11px; margin-left: 6px;
+}
+.preset-actions { display: flex; gap: 2px; }
+.preset-actions button {
+  background: transparent; border: none; color: var(--muted, #888);
+  width: 24px; height: 24px; border-radius: 4px;
+  cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.preset-actions button:hover { background: rgba(255,255,255,0.08); color: var(--text, #fff); }
+.preset-empty {
+  padding: 16px; text-align: center;
+  color: var(--muted, #888); font-size: 13px;
+}
+
