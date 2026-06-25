@@ -1863,6 +1863,7 @@ function openPlayerProfile(playerId) {
   const canEditPhoto = isAdmin || getMyPlayerId() === j.id;
   let btns = '';
   if (canEditPhoto) btns += `<button class="btn-ghost" onclick="openPhotoModal('${j.id}')">📷 Changer la photo</button>`;
+  if (canEditPhoto) btns += `<button class="btn-ghost" onclick="renamePlayer('${j.id}')">✏️ Changer mon nom</button>`;
   if (canEditFut) btns += `<button class="btn-ghost" onclick="openFutEditor('${j.id}')">⚽ Mes stats FUT</button>`;
   if (isAdmin) btns += `<button class="btn-ghost" onclick="manageAliases('${j.id}')">⚙ Gerer alias</button>`;
   if (isAdmin) btns += `<button class="btn-primary" onclick="mergePlayer('${j.id}')">🔀 Fusionner ici</button>`;
@@ -1888,6 +1889,44 @@ function openPlayerProfile(playerId) {
 
   document.getElementById('profileBody').innerHTML = html;
   openModal('modalProfile');
+}
+
+async function renamePlayer(playerId) {
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return;
+  if (!(isAdmin || getMyPlayerId() === j.id)) return;
+  const oldNom = j.nom;
+  const newNom = prompt('Nouveau nom :', oldNom);
+  if (newNom === null) return;
+  const trimmed = newNom.trim();
+  if (!trimmed) { toast('Nom vide'); return; }
+  if (trimmed === oldNom) return;
+  if (joueurs.some(jj => jj.id !== j.id && (jj.nom || '').toLowerCase() === trimmed.toLowerCase())) {
+    toast('Ce nom existe deja');
+    return;
+  }
+  j.nom = trimmed;
+  // Ajout ancien nom en alias pour matcher les imports futurs
+  if (!j.aliases) j.aliases = [];
+  if (oldNom && !j.aliases.includes(oldNom)) j.aliases.push(oldNom);
+  save('bamfc_joueurs', joueurs);
+  await pushJoueur(j);
+  // MAJ playerName dans les videos d'historique pour que les buts continuent a etre attribues correctement
+  for (const m of historique) {
+    let changed = false;
+    if (m.videos && m.videos.length) {
+      for (const v of m.videos) {
+        if (v.playerName === oldNom) { v.playerName = trimmed; changed = true; }
+      }
+    }
+    if (changed) { await pushMatch(m); }
+  }
+  save('bamfc_historique', historique);
+  renderJoueurs(); renderTierList();
+  renderStats(); renderAffinites();
+  renderHistorique();
+  openPlayerProfile(j.id);
+  toast('Nom mis a jour');
 }
 
 async function manageAliases(playerId) {
