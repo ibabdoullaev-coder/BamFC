@@ -1232,8 +1232,8 @@ td.empty-state { padding: 2rem; }
 
 /* === FUT CARD MINI (pour les slots du terrain) === */
 .fut-card-mini {
-  max-width: 78px;
-  padding: 6px 4px 4px;
+  max-width: 90px;
+  padding: 10px 6px 8px;
   border-radius: 8px;
   pointer-events: none;
 }
@@ -1242,13 +1242,13 @@ td.empty-state { padding: 2rem; }
 .fut-card-mini .fut-flag { width: 14px; height: 9px; margin-top: 2px; }
 .fut-card-mini .fut-club-logo { width: 14px; height: 14px; margin-top: 2px; }
 .fut-card-mini .fut-club-text { font-size: 6px; padding: 1px 2px; }
-.fut-card-mini .fut-photo { width: 44px; height: 44px; margin-top: 14px; }
+.fut-card-mini .fut-photo { width: 40px; height: 40px; margin-top: 0; }
 .fut-card-mini .fut-photo-initials { font-size: 14px; }
 .fut-card-mini .fut-name { font-size: 9px; line-height: 1.1; margin-top: 4px; padding-bottom: 3px; min-height: 11px; letter-spacing: 0.02em; color: #1a1a1a; }
 .fut-card-mini .fut-divider { margin-bottom: 3px; }
 .fut-card-mini .fut-stats-col { gap: 1px; }
-.fut-card-mini .fut-stats-col > div { font-size: 6px; gap: 2px; }
-.fut-card-mini .fut-stats b { font-size: 6px; min-width: 10px; }
+.fut-card-mini .fut-stats-col > div { font-size: 7px; gap: 3px; }
+.fut-card-mini .fut-stats b { font-size: 7px; min-width: 12px; }
 .fut-card-mini .fut-top-row { gap: 2px; }
 .fut-card-mini .fut-stats { gap: 4px; }
 
