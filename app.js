@@ -1347,12 +1347,70 @@ function playGoalFromCache(idx) {
   playVideo(g.videoUrl, window._currentPlayerName, g.time);
 }
 
+var _goalQueue = [];
+var _goalQueueIdx = 0;
+
 function playVideo(url, title, time) {
   if (!url) { toast('Pas de video disponible'); return; }
-  document.getElementById('videoTitle').textContent = 'But · ' + title + ' (' + Math.floor(time/60) + "')";
-  document.getElementById('videoPlayer').src = url;
+  // Si pas de queue, cree une queue solo pour cache les fleches
+  if (!_goalQueue.length || !_goalQueue.some(g => g.url === url && g.time === time && g.title === title)) {
+    _goalQueue = [{ url: url, title: title, time: time }];
+    _goalQueueIdx = 0;
+  } else {
+    _goalQueueIdx = _goalQueue.findIndex(g => g.url === url && g.time === time && g.title === title);
+    if (_goalQueueIdx < 0) _goalQueueIdx = 0;
+  }
+  _showCurrentGoal();
   openModal('modalVideo');
 }
+
+function playGoalQueue(queue, startIdx) {
+  if (!queue || !queue.length) return;
+  _goalQueue = queue.slice();
+  _goalQueueIdx = Math.max(0, Math.min(startIdx || 0, queue.length - 1));
+  const cur = _goalQueue[_goalQueueIdx];
+  if (!cur || !cur.url) { toast('Pas de video disponible'); return; }
+  _showCurrentGoal();
+  openModal('modalVideo');
+}
+
+function _showCurrentGoal() {
+  const cur = _goalQueue[_goalQueueIdx];
+  if (!cur) return;
+  const titleEl = document.getElementById('videoTitle');
+  const player = document.getElementById('videoPlayer');
+  if (titleEl) titleEl.textContent = 'But · ' + cur.title + ' (' + Math.floor((cur.time || 0)/60) + "')";
+  if (player) { player.src = cur.url; player.style.display = ''; }
+  const prevBtn = document.getElementById('videoNavPrev');
+  const nextBtn = document.getElementById('videoNavNext');
+  const counter = document.getElementById('videoNavCounter');
+  const hasMany = _goalQueue.length > 1;
+  if (prevBtn) { prevBtn.style.display = hasMany ? '' : 'none'; prevBtn.disabled = _goalQueueIdx <= 0; }
+  if (nextBtn) { nextBtn.style.display = hasMany ? '' : 'none'; nextBtn.disabled = _goalQueueIdx >= _goalQueue.length - 1; }
+  if (counter) {
+    if (hasMany) { counter.textContent = (_goalQueueIdx + 1) + ' / ' + _goalQueue.length; counter.style.display = ''; }
+    else counter.style.display = 'none';
+  }
+}
+
+function playPrevGoal() {
+  if (_goalQueueIdx > 0) { _goalQueueIdx--; _showCurrentGoal(); }
+}
+function playNextGoal() {
+  if (_goalQueueIdx < _goalQueue.length - 1) { _goalQueueIdx++; _showCurrentGoal(); }
+}
+
+// Raccourcis Shift+fleche pour naviguer entre buts (en plus des fleches nues qui font seek 5s)
+document.addEventListener('keydown', function(e) {
+  if (!e.shiftKey) return;
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const modal = document.getElementById('modalVideo');
+  if (!modal || !modal.classList.contains('active')) return;
+  e.preventDefault();
+  if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  if (e.key === 'ArrowLeft') playPrevGoal();
+  else playNextGoal();
+}, true);
 
 async function enregistrerImportComme() {
   if (!lastImportData) return;
@@ -1930,7 +1988,7 @@ function openPlayerProfile(playerId) {
   } else {
     html += '<div class="profile-goals-list">';
     goalsWithVids.forEach((g, i) => {
-      const clickable = g.url ? `onclick="playVideo('${g.url}', '${j.nom}', ${g.time || 0})" style="cursor:pointer"` : '';
+      const clickable = g.url ? `onclick="openGoalInPlayerContext('${j.id}', '${g.url}', ${g.time || 0})" style="cursor:pointer"` : '';
       const playIcon = g.url ? '<span style="color:var(--accent)">▶</span>' : '<span style="color:var(--text-dim);font-size:10px">pas de video</span>';
       const timeStr = g.time != null ? Math.floor(g.time/60) + "'" : '';
       html += `<div class="profile-goal" ${clickable}><span class="pg-match">${g.matchNom}</span><span class="pg-time">${timeStr}</span>${playIcon}</div>`;
@@ -2435,7 +2493,7 @@ function openMatchSummary(matchId) {
     // Centre: minute + bouton play
     html += '<div class="st-center">';
     html += '<div class="st-line"></div>';
-    html += '<button class="st-play" onclick="playVideo(\'' + g.url + '\', \'' + nom.replace(/'/g, "\\'") + '\', ' + (g.time || 0) + ')">' + g.minute + "'</button>";
+    html += '<button class="st-play" onclick="openGoalInMatchContext(\'' + m.id + '\', \'' + g.url + '\', \'' + nom.replace(/'/g, "\\'") + '\', ' + (g.time || 0) + ')">' + g.minute + "'</button>";
     html += '</div>';
     // Colonne droite (team B)
     html += '<div class="st-right">';
@@ -3019,4 +3077,51 @@ document.addEventListener('click', function(e) {
   if (e.target.closest && (e.target.closest('.presets-wrap') || e.target.closest('.presets-menu'))) return;
   m.style.display = 'none';
 });
+
+/* === BUILDERS de queue de buts (contexte match / joueur) === */
+function buildMatchGoalsQueue(matchId) {
+  if (typeof historique === 'undefined') return [];
+  const m = historique.find(mm => mm.id === matchId);
+  if (!m || !m.videos) return [];
+  return m.videos
+    .filter(v => v.url)
+    .slice()
+    .sort((a, b) => (a.time || 0) - (b.time || 0))
+    .map(v => ({ url: v.url, title: v.playerName || '?', time: v.time || 0 }));
+}
+function buildPlayerGoalsQueue(playerId) {
+  if (typeof historique === 'undefined' || typeof joueurs === 'undefined') return [];
+  const j = joueurs.find(jj => jj.id === playerId);
+  if (!j) return [];
+  const q = [];
+  for (const m of historique) {
+    if (!m.videos) continue;
+    for (const v of m.videos) {
+      if (!v.url) continue;
+      const found = findJoueurByName(v.playerName);
+      if (found && found.id === playerId) {
+        q.push({ url: v.url, title: j.nom, time: v.time || 0, matchNom: m.nom || m.date });
+      }
+    }
+  }
+  return q;
+}
+
+// Wrapper : ouvrir le but d'un match avec navigation entre buts du match
+function openGoalInMatchContext(matchId, url, title, time) {
+  const q = buildMatchGoalsQueue(matchId);
+  const idx = q.findIndex(g => g.url === url && g.time === time);
+  if (idx >= 0) playGoalQueue(q, idx);
+  else playVideo(url, title, time);
+}
+// Wrapper : ouvrir un but depuis profil joueur avec navigation entre buts du joueur
+function openGoalInPlayerContext(playerId, url, time) {
+  const q = buildPlayerGoalsQueue(playerId);
+  const idx = q.findIndex(g => g.url === url && g.time === time);
+  if (idx >= 0) playGoalQueue(q, idx);
+  else {
+    const j = joueurs.find(jj => jj.id === playerId);
+    playVideo(url, j ? j.nom : '?', time);
+  }
+}
 

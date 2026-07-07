@@ -225,8 +225,11 @@
       <span class="modal-title" id="videoTitle">But</span>
       <button class="modal-close" onclick="closeModal('modalVideo')">×</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="position:relative">
       <video id="videoPlayer" controls autoplay style="width:100%;border-radius:8px;background:#000"></video>
+      <button class="video-nav video-nav-prev" id="videoNavPrev" onclick="playPrevGoal()" title="But precedent (Shift+fleche gauche)">&lsaquo;</button>
+      <button class="video-nav video-nav-next" id="videoNavNext" onclick="playNextGoal()" title="But suivant (Shift+fleche droite)">&rsaquo;</button>
+      <div class="video-nav-counter" id="videoNavCounter"></div>
     </div>
   </div>
 </div>
