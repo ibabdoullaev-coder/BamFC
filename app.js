@@ -877,8 +877,8 @@ function renderHistoriqueTerrain(el, m, mi) {
       el2.onclick = () => {
         const vids = videosByPlayer[jid];
         if (!vids || !vids.length) { toast(p.nom + ' n a pas de video disponible'); return; }
-        if (vids.length === 1) playVideo(vids[0].videoUrl, p.nom, vids[0].time);
-        else showPlayerGoals({ name: p.nom }, vids);
+        // Contexte match : toujours utiliser la queue globale du match (tri par joueur, chrono, boucle)
+        openGoalInMatchContext(m.id, vids[0].videoUrl, p.nom, vids[0].time);
       };
       container.appendChild(el2);
     });
