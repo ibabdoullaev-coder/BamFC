@@ -1385,8 +1385,8 @@ function _showCurrentGoal() {
   const nextBtn = document.getElementById('videoNavNext');
   const counter = document.getElementById('videoNavCounter');
   const hasMany = _goalQueue.length > 1;
-  if (prevBtn) { prevBtn.style.display = hasMany ? '' : 'none'; prevBtn.disabled = _goalQueueIdx <= 0; }
-  if (nextBtn) { nextBtn.style.display = hasMany ? '' : 'none'; nextBtn.disabled = _goalQueueIdx >= _goalQueue.length - 1; }
+  if (prevBtn) { prevBtn.style.display = hasMany ? '' : 'none'; prevBtn.disabled = false; }
+  if (nextBtn) { nextBtn.style.display = hasMany ? '' : 'none'; nextBtn.disabled = false; }
   if (counter) {
     if (hasMany) { counter.textContent = (_goalQueueIdx + 1) + ' / ' + _goalQueue.length; counter.style.display = ''; }
     else counter.style.display = 'none';
@@ -1394,10 +1394,14 @@ function _showCurrentGoal() {
 }
 
 function playPrevGoal() {
-  if (_goalQueueIdx > 0) { _goalQueueIdx--; _showCurrentGoal(); }
+  if (!_goalQueue.length) return;
+  _goalQueueIdx = (_goalQueueIdx - 1 + _goalQueue.length) % _goalQueue.length;
+  _showCurrentGoal();
 }
 function playNextGoal() {
-  if (_goalQueueIdx < _goalQueue.length - 1) { _goalQueueIdx++; _showCurrentGoal(); }
+  if (!_goalQueue.length) return;
+  _goalQueueIdx = (_goalQueueIdx + 1) % _goalQueue.length;
+  _showCurrentGoal();
 }
 
 // Raccourcis Shift+fleche pour naviguer entre buts (en plus des fleches nues qui font seek 5s)
@@ -3083,11 +3087,41 @@ function buildMatchGoalsQueue(matchId) {
   if (typeof historique === 'undefined') return [];
   const m = historique.find(mm => mm.id === matchId);
   if (!m || !m.videos) return [];
-  return m.videos
-    .filter(v => v.url)
-    .slice()
-    .sort((a, b) => (a.time || 0) - (b.time || 0))
-    .map(v => ({ url: v.url, title: v.playerName || '?', time: v.time || 0 }));
+  // 1. Regrouper les videos par joueur (via findJoueurByName)
+  const byPlayerId = {};
+  const orphans = [];
+  for (const v of m.videos) {
+    if (!v.url) continue;
+    const j = (typeof findJoueurByName === 'function') ? findJoueurByName(v.playerName) : null;
+    const key = j ? j.id : null;
+    if (key) {
+      if (!byPlayerId[key]) byPlayerId[key] = [];
+      byPlayerId[key].push({ url: v.url, title: v.playerName || (j ? j.nom : '?'), time: v.time || 0 });
+    } else {
+      orphans.push({ url: v.url, title: v.playerName || '?', time: v.time || 0 });
+    }
+  }
+  // 2. Ordonner les joueurs selon leur position dans les equipes du match
+  const orderedIds = [];
+  for (const t of (m.teams || [])) {
+    for (const pid of (t.joueurs || [])) {
+      if (byPlayerId[pid] && !orderedIds.includes(pid)) orderedIds.push(pid);
+    }
+  }
+  // 3. Ajouter les buteurs qui ne sont pas dans les equipes (au cas ou)
+  for (const pid of Object.keys(byPlayerId)) {
+    if (!orderedIds.includes(pid)) orderedIds.push(pid);
+  }
+  // 4. Aplatir : pour chaque joueur, ses buts en ordre chrono
+  const queue = [];
+  for (const pid of orderedIds) {
+    const goals = byPlayerId[pid].slice().sort((a, b) => (a.time || 0) - (b.time || 0));
+    for (const g of goals) queue.push(g);
+  }
+  // 5. Orphans a la fin (chrono entre eux)
+  orphans.sort((a, b) => (a.time || 0) - (b.time || 0));
+  for (const g of orphans) queue.push(g);
+  return queue;
 }
 function buildPlayerGoalsQueue(playerId) {
   if (typeof historique === 'undefined' || typeof joueurs === 'undefined') return [];
