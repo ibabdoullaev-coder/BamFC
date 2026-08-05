@@ -1011,6 +1011,7 @@ const FORMATIONS_B = {
 };
 
 let playerPositions = {};
+let editFormationMode = false;
 
 function drawField() {
   const canvas = document.getElementById('terrainCanvas');
@@ -1079,6 +1080,21 @@ function makeFifaCard(j) {
   '</div>';
 }
 
+function toggleFormationEdit() {
+    editFormationMode = !editFormationMode;
+    const btn = document.getElementById("toggleFormationEdit");
+    if (editFormationMode) {
+        btn.textContent = "✅ Modifier la composition : ON";
+        btn.classList.add("btn-primary");
+        btn.classList.remove("btn-secondary");
+    } else {
+        btn.textContent = "📍 Modifier la composition : OFF";
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-secondary");
+    }
+    renderTerrain();
+}
+
 function renderTerrain() {
   if (!currentTeams.length) return;
   document.getElementById('terrainWrap').style.display = '';
@@ -1099,17 +1115,19 @@ function renderTerrain() {
       el.className = 't-player';
       el.style.left = (pos.x * 100) + '%';
       el.style.top = (pos.y * 100) + '%';
-      el.innerHTML = makeFifaCard(j);
+      el.innerHTML = (editFormationMode ? '<div class="formation-handle">✥</div>' : '') + makeFifaCard(j);
       let dragging = false, ox = 0, oy = 0;
       const field = document.getElementById('terrainField');
-      el.addEventListener('mousedown', e => {
+(el.querySelector(".formation-handle") || document.createElement("div")).addEventListener('mousedown', e => {
+        if (!editFormationMode) return;
         dragging = true;
         const r = el.getBoundingClientRect();
         ox = e.clientX - r.left - r.width/2;
         oy = e.clientY - r.top - r.height/2;
         e.preventDefault();
       });
-      el.addEventListener('touchstart', e => {
+(el.querySelector(".formation-handle") || document.createElement("div")).addEventListener('touchstart', e => {
+        if (!editFormationMode) return;
         dragging = true;
         const t = e.touches[0];
         const r = el.getBoundingClientRect();

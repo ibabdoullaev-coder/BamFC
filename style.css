@@ -1305,3 +1305,28 @@ td.empty-state { padding: 2rem; }
   z-index: 9;
 }
 
+
+.formation-handle {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #00d084;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: grab;
+    box-shadow: 0 3px 8px rgba(0,0,0,.35);
+    z-index: 500;
+    user-select: none;
+}
+
+.formation-handle:active {
+    cursor: grabbing;
+}
