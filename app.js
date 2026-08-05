@@ -1100,54 +1100,102 @@ function renderTerrain() {
   document.getElementById('terrainWrap').style.display = '';
   document.getElementById('terrainHint').style.display = 'none';
   drawField();
+
   const container = document.getElementById('terrainPlayers');
   container.innerHTML = '';
+
   const fmtA = document.getElementById('formationA').value;
   const fmtB = document.getElementById('formationB').value;
   const posA = FORMATIONS[fmtA] || FORMATIONS['2-2'];
   const posB = FORMATIONS_B[fmtB] || FORMATIONS_B['2-2'];
+
   [currentTeams[0] || [], currentTeams[1] || []].forEach((team, ti) => {
     const positions = ti === 0 ? posA : posB;
+
     team.forEach((j, idx) => {
       const defPos = positions[idx] || [0.5, ti === 0 ? 0.75 : 0.25];
       const pos = playerPositions[j.id] || { x: defPos[0], y: defPos[1] };
+
       const el = document.createElement('div');
       el.className = 't-player';
       el.style.left = (pos.x * 100) + '%';
       el.style.top = (pos.y * 100) + '%';
-      el.innerHTML = (editFormationMode ? '<div class="formation-handle">✥</div>' : '') + makeFifaCard(j);
-      let dragging = false, ox = 0, oy = 0;
+
+      el.innerHTML =
+        (editFormationMode
+          ? '<div class="formation-handle" title="Déplacer le joueur">✥</div>'
+          : '') +
+        makeFifaCard(j);
+
+      let dragging = false;
+      let ox = 0;
+      let oy = 0;
+
       const field = document.getElementById('terrainField');
-(el.querySelector(".formation-handle") || document.createElement("div")).addEventListener('mousedown', e => {
-        if (!editFormationMode) return;
+      const handle = el.querySelector('.formation-handle');
+
+      const startDrag = (clientX, clientY, e) => {
+        if (!editFormationMode || !handle) return;
+
         dragging = true;
+
         const r = el.getBoundingClientRect();
-        ox = e.clientX - r.left - r.width/2;
-        oy = e.clientY - r.top - r.height/2;
-        e.preventDefault();
-      });
-(el.querySelector(".formation-handle") || document.createElement("div")).addEventListener('touchstart', e => {
-        if (!editFormationMode) return;
-        dragging = true;
-        const t = e.touches[0];
-        const r = el.getBoundingClientRect();
-        ox = t.clientX - r.left - r.width/2;
-        oy = t.clientY - r.top - r.height/2;
-        e.preventDefault();
-      }, { passive: false });
+        ox = clientX - r.left - r.width / 2;
+        oy = clientY - r.top - r.height / 2;
+
+        if (e) e.preventDefault();
+      };
+
+      if (handle) {
+        handle.addEventListener('mousedown', e => {
+          startDrag(e.clientX, e.clientY, e);
+        });
+
+        handle.addEventListener('touchstart', e => {
+          const t = e.touches[0];
+          startDrag(t.clientX, t.clientY, e);
+        }, { passive: false });
+      }
+
       const onMove = (cx, cy) => {
         if (!dragging) return;
+
         const fr = field.getBoundingClientRect();
-        let px = Math.max(0.03, Math.min(0.97, (cx - ox - fr.left) / fr.width));
-        let py = Math.max(0.03, Math.min(0.97, (cy - oy - fr.top) / fr.height));
+
+        const px = Math.max(
+          0.03,
+          Math.min(0.97, (cx - ox - fr.left) / fr.width)
+        );
+
+        const py = Math.max(
+          0.03,
+          Math.min(0.97, (cy - oy - fr.top) / fr.height)
+        );
+
         el.style.left = (px * 100) + '%';
         el.style.top = (py * 100) + '%';
+
         playerPositions[j.id] = { x: px, y: py };
       };
-      document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-      document.addEventListener('touchmove', e => { if(dragging) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-      document.addEventListener('mouseup', () => { dragging = false; });
-      document.addEventListener('touchend', () => { dragging = false; });
+
+      document.addEventListener('mousemove', e => {
+        onMove(e.clientX, e.clientY);
+      });
+
+      document.addEventListener('touchmove', e => {
+        if (dragging) {
+          onMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      document.addEventListener('mouseup', () => {
+        dragging = false;
+      });
+
+      document.addEventListener('touchend', () => {
+        dragging = false;
+      });
+
       container.appendChild(el);
     });
   });
