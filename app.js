@@ -3225,3 +3225,656 @@ function openGoalInPlayerContext(playerId, url, time) {
   }
 }
 
+
+/* ==========================================================================
+   MOBILE  —  menu burger, drag & drop tactile, terrain en portrait
+   Bloc autonome ajoute en fin de fichier. Rien au-dessus n'en depend.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var MOBILE_Q = '(max-width: 700px)';
+  var NAV_Q    = '(max-width: 860px)';
+  function isMobile()  { return window.matchMedia(MOBILE_Q).matches; }
+  function isNavMobile(){ return window.matchMedia(NAV_Q).matches; }
+
+  /* ---------------------------------------------------------------- MENU */
+  function navEls() {
+    return {
+      links:  document.getElementById('navLinks'),
+      burger: document.getElementById('navBurger'),
+      back:   document.getElementById('navBackdrop')
+    };
+  }
+  window.openNavMenu = function () {
+    var e = navEls(); if (!e.links) return;
+    e.links.classList.add('open');
+    if (e.burger) { e.burger.classList.add('open'); e.burger.setAttribute('aria-expanded', 'true'); }
+    if (e.back) e.back.classList.add('open');
+  };
+  window.closeNavMenu = function () {
+    var e = navEls(); if (!e.links) return;
+    e.links.classList.remove('open');
+    if (e.burger) { e.burger.classList.remove('open'); e.burger.setAttribute('aria-expanded', 'false'); }
+    if (e.back) e.back.classList.remove('open');
+  };
+  window.toggleNavMenu = function () {
+    var e = navEls(); if (!e.links) return;
+    if (e.links.classList.contains('open')) window.closeNavMenu();
+    else window.openNavMenu();
+  };
+
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest && ev.target.closest('#navLinks .nav-link');
+    if (a) window.closeNavMenu();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') window.closeNavMenu();
+  });
+  window.addEventListener('resize', function () {
+    if (!isNavMobile()) window.closeNavMenu();
+  });
+
+  /* -------------------------------------------------- DRAG & DROP TACTILE
+     Pont entre les evenements tactiles et l'API HTML5 drag and drop :
+     on rejoue dragstart / dragover / drop / dragend pour que TOUS les
+     handlers existants (terrain, banc, equipes, tier list) fonctionnent
+     au doigt sans etre reecrits.                                        */
+
+  var HOLD_MS    = 170;  // appui avant de basculer en drag
+  var MOVE_ABORT = 10;   // px : au-dela avant le delai, c'est un scroll
+
+  var src = null, ghost = null, holdTimer = null, active = false;
+  var startX = 0, startY = 0, lastOver = null, dt = null, justDragged = false;
+
+  function makeDataTransfer() {
+    try { return new DataTransfer(); } catch (e) {
+      var store = {};
+      return {
+        effectAllowed: 'move', dropEffect: 'move', files: [], types: [],
+        setData: function (k, v) { store[k] = String(v); },
+        getData: function (k) { return store[k] || ''; },
+        clearData: function () { store = {}; },
+        setDragImage: function () {}
+      };
+    }
+  }
+
+  function fire(el, type, x, y, related) {
+    if (!el) return;
+    var ev;
+    try {
+      ev = new DragEvent(type, {
+        bubbles: true, cancelable: true, composed: true,
+        clientX: x, clientY: y, dataTransfer: dt, relatedTarget: related || null
+      });
+    } catch (e) {
+      ev = new MouseEvent(type, {
+        bubbles: true, cancelable: true, composed: true,
+        clientX: x, clientY: y, relatedTarget: related || null
+      });
+      try { Object.defineProperty(ev, 'dataTransfer', { value: dt, configurable: true }); } catch (e2) {}
+    }
+    el.dispatchEvent(ev);
+  }
+
+  function buildGhost(el, x, y) {
+    var r = el.getBoundingClientRect();
+    var g = el.cloneNode(true);
+    g.classList.add('touch-drag-ghost');
+    g.removeAttribute('id');
+    g.style.width  = r.width + 'px';
+    g.style.height = r.height + 'px';
+    g.style.left = x + 'px';
+    g.style.top  = y + 'px';
+    g.style.margin = '0';
+    document.body.appendChild(g);
+    return g;
+  }
+
+  function cleanup() {
+    stopAutoScroll();
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+    if (src) src.classList.remove('touch-dragging-source');
+    document.body.classList.remove('touch-dragging');
+    document.querySelectorAll('.drop-over').forEach(function (n) { n.classList.remove('drop-over'); });
+    src = null; ghost = null; lastOver = null; active = false; dt = null;
+  }
+
+  function begin(x, y) {
+    if (!src) return;
+    active = true;
+    dt = makeDataTransfer();
+    document.body.classList.add('touch-dragging');
+    ghost = buildGhost(src, x, y);
+    src.classList.add('touch-dragging-source');
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    startAutoScroll();
+    fire(src, 'dragstart', x, y);
+  }
+
+  document.addEventListener('touchstart', function (ev) {
+    if (active || ev.touches.length !== 1) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    // On laisse tranquilles les controles interactifs et les handles maison
+    if (t.closest('button, input, select, textarea, a, .formation-handle, video')) return;
+    var el = t.closest('[draggable="true"]');
+    if (!el) return;
+
+    src = el;
+    startX = ev.touches[0].clientX;
+    startY = ev.touches[0].clientY;
+    holdTimer = setTimeout(function () { begin(startX, startY); }, HOLD_MS);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (ev) {
+    if (!src || ev.touches.length !== 1) return;
+    var x = ev.touches[0].clientX, y = ev.touches[0].clientY;
+
+    if (!active) {
+      // Trop de mouvement avant le delai : l'utilisateur voulait scroller
+      if (Math.abs(x - startX) > MOVE_ABORT || Math.abs(y - startY) > MOVE_ABORT) cleanup();
+      return;
+    }
+
+    ev.preventDefault();
+    if (ghost) { ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; }
+
+    var under = document.elementFromPoint(x, y);
+    if (!under) return;
+    if (under !== lastOver) {
+      if (lastOver) fire(lastOver, 'dragleave', x, y, under);
+      fire(under, 'dragenter', x, y, lastOver);
+      lastOver = under;
+    }
+    fire(under, 'dragover', x, y);
+  }, { passive: false });
+
+  function finish(ev) {
+    if (!src) return;
+    if (!active) { cleanup(); return; }
+    var x = startX, y = startY;
+    if (ev.changedTouches && ev.changedTouches[0]) {
+      x = ev.changedTouches[0].clientX;
+      y = ev.changedTouches[0].clientY;
+    }
+    var target = document.elementFromPoint(x, y) || lastOver;
+    var source = src;
+    if (target) fire(target, 'drop', x, y);
+    fire(source, 'dragend', x, y);
+    justDragged = true;
+    setTimeout(function () { justDragged = false; }, 350);
+    cleanup();
+  }
+
+  document.addEventListener('touchend', finish, { passive: true });
+  document.addEventListener('touchcancel', function () { if (src) { if (active) fire(src, 'dragend', startX, startY); cleanup(); } }, { passive: true });
+
+  // Un vrai drag ne doit pas declencher le onclick de la carte (ouvrir un profil)
+  document.addEventListener('click', function (ev) {
+    if (!justDragged) return;
+    ev.stopPropagation();
+    ev.preventDefault();
+  }, true);
+
+  /* --------------------------------------- AUTO-SCROLL PENDANT LE DRAG
+     Sur un ecran de telephone, la source et la cible tiennent rarement
+     ensemble a l'ecran : quand le doigt approche d'un bord, on defile.  */
+  var autoScroll = null;
+  function startAutoScroll() {
+    if (autoScroll) return;
+    autoScroll = setInterval(function () {
+      if (!active || !ghost) return;
+      var y = parseFloat(ghost.style.top);
+      var h = window.innerHeight, zone = 90;
+      var dy = 0;
+      if (y < zone) dy = -Math.ceil((zone - y) / 6);
+      else if (y > h - zone) dy = Math.ceil((y - (h - zone)) / 6);
+      if (dy) document.scrollingElement.scrollTop += dy;
+    }, 16);
+  }
+  function stopAutoScroll() { if (autoScroll) { clearInterval(autoScroll); autoScroll = null; } }
+
+  /* ------------------------------------------- COMPOSITION AU TAP (mobile)
+     Le drag reste dispo, mais poser un joueur au doigt est bien plus sur :
+     on tape le joueur, puis on tape la place ou on veut le mettre.        */
+
+  var picked = null;   // { pid, fromTeam, fromIdx }
+
+  function clearPick() {
+    picked = null;
+    document.querySelectorAll('.tap-picked').forEach(function (n) { n.classList.remove('tap-picked'); });
+    document.body.classList.remove('tap-placing');
+  }
+
+  function pick(el, data, labelNom) {
+    clearPick();
+    picked = data;
+    el.classList.add('tap-picked');
+    document.body.classList.add('tap-placing');
+    if (typeof showToast === 'function') showToast('👆 ' + labelNom + ' selectionne — tape une place sur le terrain');
+    else if (typeof toast === 'function') toast('👆 ' + labelNom + ' selectionne');
+  }
+
+  function nomDe(pid) {
+    try {
+      var j = joueurs.find(function (x) { return x.id === pid; });
+      return j ? j.nom : 'Joueur';
+    } catch (e) { return 'Joueur'; }
+  }
+
+  document.addEventListener('click', function (ev) {
+    if (!isMobile() || justDragged) return;
+    if (document.body.classList.contains('match-formation-edit')) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+
+    // 1) On tape une carte du banc
+    var benchCard = t.closest('#bench .bench-card');
+    if (benchCard) {
+      ev.preventDefault(); ev.stopPropagation();
+      if (picked && picked.pid === benchCard.dataset.pid) { clearPick(); return; }
+      pick(benchCard, { pid: benchCard.dataset.pid, fromTeam: null, fromIdx: null }, nomDe(benchCard.dataset.pid));
+      return;
+    }
+
+    // 2) On tape une place du terrain
+    var slot = t.closest('#matchPitchSlots .match-slot');
+    if (slot) {
+      var ti  = parseInt(slot.dataset.team, 10);
+      var idx = parseInt(slot.dataset.idx, 10);
+      var card = slot.querySelector('.slot-card');
+
+      if (picked) {
+        ev.preventDefault(); ev.stopPropagation();
+        dragData = { pid: picked.pid, fromTeam: picked.fromTeam, fromIdx: picked.fromIdx };
+        clearPick();
+        handleDrop(ti, idx);
+        return;
+      }
+      if (card) {   // rien de selectionne : on prend le joueur deja en place
+        ev.preventDefault(); ev.stopPropagation();
+        pick(card, { pid: card.dataset.pid, fromTeam: ti, fromIdx: idx }, nomDe(card.dataset.pid));
+      }
+      return;
+    }
+
+    // 3) On tape le banc avec un joueur du terrain en main : il retourne au banc
+    if (picked && picked.fromTeam !== null && t.closest('#bench')) {
+      ev.preventDefault(); ev.stopPropagation();
+      try {
+        slots['team' + picked.fromTeam][picked.fromIdx] = null;
+        clearPick();
+        renderSlots(); renderBench();
+      } catch (e) { clearPick(); }
+      return;
+    }
+
+    // 4) Ailleurs : on annule la selection
+    if (picked && !t.closest('.match-slot, #bench')) clearPick();
+  }, true);
+
+  /* ------------------------------------------------ TERRAIN EN PORTRAIT
+     En dessous de 700px, le terrain paysage ecrase les cartes les unes
+     sur les autres. On le bascule a la verticale : equipe A en haut,
+     equipe B en bas.                                                    */
+
+  var origDraw   = (typeof drawMatchField === 'function') ? drawMatchField : null;
+  var origSlots  = (typeof renderSlots    === 'function') ? renderSlots    : null;
+
+  function portraitRatio() {
+    var fmt = (typeof getMatchFormat === 'function') ? getMatchFormat() : 5;
+    // Plus il y a de joueurs, plus le terrain s'allonge pour eviter que les cartes se chevauchent
+    return 1.50 + Math.max(0, fmt - 5) * 0.14;
+  }
+
+  function drawPortraitField(canvas) {
+    var W = canvas.parentElement.clientWidth || 360;
+    var H = Math.round(W * portraitRatio());
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    for (var i = 0; i < 14; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#2d7a2d' : '#268c26';
+      ctx.fillRect(0, i * (H / 14), W, H / 14);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(8, 8, W - 16, H - 16);
+    ctx.beginPath(); ctx.moveTo(8, H / 2); ctx.lineTo(W - 8, H / 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W / 2, H / 2, W * 0.18, 0, Math.PI * 2); ctx.stroke();
+    var bw = W * 0.55, bh = H * 0.13, bx = (W - bw) / 2;
+    ctx.strokeRect(bx, 8, bw, bh);
+    ctx.strokeRect(bx, H - 8 - bh, bw, bh);
+  }
+
+  if (origDraw) {
+    drawMatchField = function () {
+      var canvas = document.getElementById('matchPitchCanvas');
+      if (!canvas) return;
+      if (isMobile()) drawPortraitField(canvas);
+      else origDraw();
+    };
+  }
+
+  if (origSlots) {
+    renderSlots = function () {
+      origSlots();
+      if (typeof window.__applyCustomSlotPositions === 'function') window.__applyCustomSlotPositions();
+      if (!isMobile()) return;
+      var fmt = (typeof getMatchFormat === 'function') ? getMatchFormat() : 5;
+      var pitchEl = document.getElementById('matchPitchBig');
+      if (pitchEl) pitchEl.setAttribute('data-dense', fmt >= 7 ? '1' : '0');
+
+      // Les positions sont en pourcentages : on echange x et y
+      var els = document.querySelectorAll('#matchPitchSlots .match-slot');
+      els.forEach(function (el) {
+        var l = parseFloat(el.style.left);
+        var t = parseFloat(el.style.top);
+        if (isNaN(l) || isNaN(t)) return;
+        el.style.left = t + '%';
+        el.style.top  = l + '%';
+      });
+
+      // Puis on rentre dans le cadre ce qui depasse (gardiens surtout).
+      // On mesure le rendu reel : le double centrage des cartes FUT rend
+      // tout calcul theorique faux.
+      var pitch = document.getElementById('matchPitchBig');
+      if (!pitch) return;
+      requestAnimationFrame(function () {
+        var pr = pitch.getBoundingClientRect();
+        if (!pr.height) return;
+        els.forEach(function (el) {
+          var inner = el.firstElementChild;
+          if (!inner) return;
+          var r = el.getBoundingClientRect();
+          var ir = inner.getBoundingClientRect();
+          if (!ir.height) return;
+          var over = 0;
+          if (ir.top < pr.top + 4)          over = (pr.top + 4) - ir.top;
+          else if (ir.bottom > pr.bottom - 4) over = (pr.bottom - 4) - ir.bottom;
+          if (!over) return;
+          var topPct = ((r.top + r.height / 2 - pr.top + over) / pr.height) * 100;
+          el.style.top = topPct + '%';
+        });
+      });
+    };
+  }
+
+  // Redessiner quand on franchit le seuil (rotation de l'ecran, resize)
+  var wasMobile = isMobile(), rzTimer = null;
+  function onResize() {
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(function () {
+      var now = isMobile();
+      if (!document.getElementById('matchPitchCanvas')) return;
+      if (typeof drawMatchField === 'function') drawMatchField();
+      if (now !== wasMobile) {
+        wasMobile = now;
+        if (typeof renderSlots === 'function') renderSlots();
+      }
+    }, 120);
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+
+  // Premier rendu apres chargement (le terrain s'initialise en differe)
+  setTimeout(function () {
+    if (!document.getElementById('matchPitchCanvas')) return;
+    if (typeof drawMatchField === 'function') drawMatchField();
+    if (typeof renderSlots === 'function') renderSlots();
+  }, 350);
+})();
+
+/* ==========================================================================
+   DESIGN v2 — couche d'animation, purement presentationnelle.
+   Ne lit ni ne modifie aucune donnee : ni joueurs, ni historique, ni tiers,
+   ni l'ordre d'affichage. Si ce bloc plante, le site reste fonctionnel.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var calme = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* --- Apparition des sections au defilement --- */
+  function observerSections() {
+    var cibles = document.querySelectorAll('.section');
+    if (!cibles.length) return;
+    if (calme || !('IntersectionObserver' in window)) return;   // sinon : tout reste visible, sans animation
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in-view');
+        io.unobserve(e.target);          // une seule fois, jamais de re-jeu au scroll
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.04 });
+
+    cibles.forEach(function (s) { io.observe(s); });
+  }
+
+  /* --- Compteurs du hero qui montent (une seule fois au chargement) --- */
+  var compteursFaits = false;
+
+  function monte(el, cible) {
+    var debut = performance.now(), duree = 900;
+    function pas(t) {
+      var p = Math.min(1, (t - debut) / duree);
+      var eased = 1 - Math.pow(1 - p, 3);          // ease-out cubique
+      el.textContent = Math.round(cible * eased);
+      if (p < 1) requestAnimationFrame(pas);
+      else el.textContent = cible;                  // on repose toujours sur la vraie valeur
+    }
+    requestAnimationFrame(pas);
+  }
+
+  function animerHero() {
+    if (compteursFaits || calme) return;
+    var ids = ['heroMatchs', 'heroJoueurs', 'heroButs'];
+    var els = ids.map(function (id) { return document.getElementById(id); });
+    if (els.some(function (e) { return !e; })) return;
+
+    var valeurs = els.map(function (e) { return parseInt(e.textContent, 10); });
+    if (valeurs.some(isNaN)) return;
+    if (!valeurs.some(function (v) { return v > 0; })) return;   // rien a animer tant que les donnees ne sont pas la
+
+    compteursFaits = true;
+    els.forEach(function (e, i) { monte(e, valeurs[i]); });
+  }
+
+  // updateHero ecrit les vraies valeurs ; on anime juste apres, sans y toucher
+  if (typeof updateHero === 'function') {
+    var origUpdateHero = updateHero;
+    updateHero = function () {
+      var r = origUpdateHero.apply(this, arguments);
+      if (!compteursFaits) setTimeout(animerHero, 30);
+      return r;
+    };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { observerSections(); animerHero(); });
+  } else {
+    observerSections(); animerHero();
+  }
+})();
+
+/* ==========================================================================
+   COMPOSITION DU TERRAIN — deplacement des postes (section Nouveau match)
+   --------------------------------------------------------------------------
+   On peut glisser les ronds vides pour dessiner sa compo AVANT d'y mettre
+   les joueurs. Une compo par format (5/6/7/8) et par equipe, les deux
+   equipes etant independantes.
+   Stockage : localStorage, isole derriere lireCompos()/ecrireCompos().
+   Pour passer en partage Supabase plus tard, seules ces 2 fonctions changent.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var CLE = 'bamfc_compos_terrain';
+  var MARGE = 0.06;                 // on ne colle pas les postes au bord
+
+  /* ---------------------------------------------------- STOCKAGE (isole) */
+  function lireCompos() {
+    try { return JSON.parse(localStorage.getItem(CLE) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function ecrireCompos(obj) {
+    try { localStorage.setItem(CLE, JSON.stringify(obj)); return true; }
+    catch (e) { console.warn('Compo non sauvegardee:', e); return false; }
+  }
+
+  function fmtCourant() {
+    return (typeof getMatchFormat === 'function') ? getMatchFormat() : 5;
+  }
+  function peutEditer() {
+    return document.documentElement.classList.contains('is-admin')
+        || document.documentElement.classList.contains('is-coach');
+  }
+  function enPortrait() {
+    return window.matchMedia('(max-width: 700px)').matches;
+  }
+
+  /* Position enregistree pour un poste, ou null si compo par defaut */
+  function posEnregistree(fmt, equipe, idx) {
+    var c = lireCompos();
+    var v = c[fmt] && c[fmt][equipe] && c[fmt][equipe][idx];
+    return (Array.isArray(v) && v.length === 2 && !isNaN(v[0]) && !isNaN(v[1])) ? v : null;
+  }
+
+  function enregistrerPos(fmt, equipe, idx, x, y) {
+    var c = lireCompos();
+    if (!c[fmt]) c[fmt] = {};
+    if (!c[fmt][equipe]) c[fmt][equipe] = {};
+    c[fmt][equipe][idx] = [x, y];
+    ecrireCompos(c);
+  }
+
+  /* ------------------------------------ APPLICATION AUX POSTES AFFICHES */
+  /* Appele par le wrapper de renderSlots, en coordonnees "paysage" :
+     l'eventuelle bascule en portrait a lieu juste apres. */
+  window.__applyCustomSlotPositions = function () {
+    var fmt = fmtCourant();
+    document.querySelectorAll('#matchPitchSlots .match-slot').forEach(function (el) {
+      var equipe = el.dataset.team, idx = el.dataset.idx;
+      var p = posEnregistree(fmt, equipe, idx);
+      if (p) {
+        el.style.left = (p[0] * 100) + '%';
+        el.style.top  = (p[1] * 100) + '%';
+      }
+      // En mode edition, les cartes ne se glissent pas : on deplace le poste
+      if (modeEdition) {
+        var carte = el.querySelector('.slot-card');
+        if (carte) carte.draggable = false;
+      }
+    });
+  };
+
+  /* ---------------------------------------------------- MODE EDITION */
+  var modeEdition = false;
+
+  function majUI() {
+    document.body.classList.toggle('match-formation-edit', modeEdition);
+    var btn = document.getElementById('btnFormationEdit');
+    if (btn) {
+      btn.classList.toggle('active', modeEdition);
+      btn.textContent = modeEdition ? '✓ Terminé' : '📍 Placer les postes';
+    }
+    var bar = document.getElementById('formationBar');
+    if (bar) bar.classList.toggle('open', modeEdition);
+  }
+
+  window.toggleMatchFormationEdit = function () {
+    if (!peutEditer()) { if (typeof toast === 'function') toast('Réservé aux coachs'); return; }
+    modeEdition = !modeEdition;
+    majUI();
+    if (typeof renderSlots === 'function') renderSlots();
+    if (typeof toast === 'function') {
+      toast(modeEdition ? '📍 Glisse les ronds pour placer tes postes' : '✓ Compo enregistrée');
+    }
+    if (modeEdition) {
+      var p = document.getElementById('matchPitchBig');
+      if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  window.resetMatchFormation = function () {
+    if (!peutEditer()) return;
+    var fmt = fmtCourant();
+    var c = lireCompos();
+    delete c[fmt];
+    ecrireCompos(c);
+    if (typeof renderSlots === 'function') renderSlots();
+    if (typeof toast === 'function') toast('↺ Compo par défaut restaurée (' + fmt + 'v' + fmt + ')');
+  };
+
+  /* ---------------------------------------------------- GLISSER-DEPOSER */
+  /* Pointer Events : une seule implementation pour souris et doigt. */
+  var enCours = null;   // { el, equipe, idx, decalageX, decalageY }
+
+  function zone() { return document.getElementById('matchPitchSlots'); }
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!modeEdition) return;
+    var el = e.target.closest && e.target.closest('#matchPitchSlots .match-slot');
+    if (!el) return;
+    var z = zone(); if (!z) return;
+
+    e.preventDefault();
+    var r = el.getBoundingClientRect();
+    enCours = {
+      el: el,
+      equipe: el.dataset.team,
+      idx: el.dataset.idx,
+      // decalage entre le doigt et le centre du poste, pour eviter le saut
+      decalageX: e.clientX - (r.left + r.width / 2),
+      decalageY: e.clientY - (r.top + r.height / 2)
+    };
+    el.classList.add('dragging-slot');
+    el.setPointerCapture && el.setPointerCapture(e.pointerId);
+  }, { passive: false });
+
+  document.addEventListener('pointermove', function (e) {
+    if (!enCours) return;
+    var z = zone(); if (!z) return;
+    e.preventDefault();
+
+    var zr = z.getBoundingClientRect();
+    if (!zr.width || !zr.height) return;
+
+    var fx = (e.clientX - enCours.decalageX - zr.left) / zr.width;
+    var fy = (e.clientY - enCours.decalageY - zr.top)  / zr.height;
+    fx = Math.max(MARGE, Math.min(1 - MARGE, fx));
+    fy = Math.max(MARGE, Math.min(1 - MARGE, fy));
+
+    // Retour visuel immediat, dans le repere affiche
+    enCours.el.style.left = (fx * 100) + '%';
+    enCours.el.style.top  = (fy * 100) + '%';
+
+    // En portrait le terrain est pivote : on restocke en repere paysage
+    enCours.x = enPortrait() ? fy : fx;
+    enCours.y = enPortrait() ? fx : fy;
+  }, { passive: false });
+
+  function finGlisser() {
+    if (!enCours) return;
+    enCours.el.classList.remove('dragging-slot');
+    if (enCours.x !== undefined) {
+      enregistrerPos(fmtCourant(), enCours.equipe, enCours.idx, enCours.x, enCours.y);
+    }
+    enCours = null;
+  }
+  document.addEventListener('pointerup', finGlisser);
+  document.addEventListener('pointercancel', finGlisser);
+
+  /* ---------------------------------------------------- INIT */
+  function init() {
+    var btn = document.getElementById('btnFormationEdit');
+    if (btn && !peutEditer()) btn.style.display = 'none';
+    majUI();
+    if (typeof renderSlots === 'function') renderSlots();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else setTimeout(init, 400);
+})();
